@@ -15,41 +15,39 @@ export default async function AccountPage() {
   const { profile } = await requireUser();
 
   return (
-    <main className="flex flex-1 justify-center bg-muted px-4 py-12 sm:py-20">
-      <div className="w-full max-w-xl space-y-8">
-        <div className="space-y-3">
-          <Eyebrow>Your account</Eyebrow>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            {profile.full_name ? `Hello, ${profile.full_name}` : "Your account"}
-          </h1>
-        </div>
-
-        <Card className="shadow-sm ring-border [--card-spacing:--spacing(6)] sm:[--card-spacing:--spacing(8)]">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Profile</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <dl className="grid gap-4 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-muted-foreground">Email</dt>
-                <dd className="font-medium break-all" data-testid="account-email">
-                  {profile.email}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Role</dt>
-                <dd className="font-medium">{ROLE_LABELS[profile.role]}</dd>
-              </div>
-            </dl>
-            <AccountForm fullName={profile.full_name ?? ""} />
-            <form action={signOut} className="border-t pt-6">
-              <Button type="submit" variant="outline">
-                Sign out
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+    <>
+      <div className="space-y-3">
+        <Eyebrow>Your account</Eyebrow>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          {profile.full_name ? `Hello, ${profile.full_name}` : "Your account"}
+        </h1>
       </div>
-    </main>
+
+      <Card className="shadow-sm ring-border [--card-spacing:--spacing(6)] sm:[--card-spacing:--spacing(8)]">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Profile</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <dl className="grid gap-4 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-muted-foreground">Email</dt>
+              <dd className="font-medium break-all" data-testid="account-email">
+                {profile.email}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Role</dt>
+              <dd className="font-medium">{ROLE_LABELS[profile.role]}</dd>
+            </div>
+          </dl>
+          <AccountForm fullName={profile.full_name ?? ""} />
+          <form action={signOut} className="border-t pt-6">
+            <Button type="submit" variant="outline">
+              Sign out
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </>
   );
 }

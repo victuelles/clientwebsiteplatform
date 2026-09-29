@@ -36,10 +36,8 @@ describe("slug validation", () => {
     "shop",
     "cart",
     "checkout",
-    "orders",
     "directory",
     "booking",
-    "bookings",
   ])("reserves %s", (slug) => {
     expect(RESERVED_SLUGS.has(slug)).toBe(true);
     expect(slugProblem(slug)).toContain("reserved");

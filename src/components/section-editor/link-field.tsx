@@ -8,22 +8,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SCOPES } from "@/core/access/scopes";
 import { LINK_KIND_LABELS, type Link, type LinkKind } from "@/core/links/types";
+
+import { listModules, modulePublicPath } from "@/core/modules/registry";
 
 import { useSectionEditor } from "./editor-context";
 
 const NONE = "__none";
 const THIS_PAGE = "__this";
-
-const MODULE_PATHS: Record<string, string> = {
-  blog: "/blog",
-  photo_gallery: "/gallery",
-  video_gallery: "/videos",
-  shop: "/shop",
-  directory: "/directory",
-  booking: "/booking",
-};
 
 function emptyLink(kind: LinkKind, firstPageId?: string): Link | null {
   switch (kind) {
@@ -67,10 +59,13 @@ export function LinkField({
     value: p.id,
     label: `${p.title} (${p.isHome ? "/" : `/${p.slug}`})${p.published ? "" : " · not published"}`,
   }));
-  const moduleItems = SCOPES.filter((s) => s.kind === "module").map((s) => ({
-    value: s.key,
-    label: `${s.label}${modules[s.key] ? "" : " (turned off: link hidden)"}`,
-  }));
+  // Modules with public pages (a link to the CRM, say, has nowhere to go).
+  const moduleItems = listModules()
+    .filter((m) => m.publicRoutes.length > 0)
+    .map((m) => ({
+      value: m.key,
+      label: `${m.label}${modules[m.key] ? "" : " (turned off: link hidden)"}`,
+    }));
 
   const select = (
     items: { value: string; label: string }[],
@@ -174,7 +169,7 @@ export function LinkField({
               onChange({
                 kind: "module",
                 moduleKey,
-                path: MODULE_PATHS[moduleKey] ?? `/${moduleKey}`,
+                path: modulePublicPath(moduleKey) ?? "/",
               }),
             "Module",
           )}

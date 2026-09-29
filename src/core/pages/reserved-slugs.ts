@@ -1,5 +1,7 @@
-// Slugs a page can never use because the app (or a module, in later phases) owns that path.
-// TODO(phase-5): derive the module paths from the module registry.
+import { reservedModulePaths } from "@/core/modules/registry";
+
+// Slugs a page can never use because the app or a module owns that path. Module paths come from
+// each manifest's publicRoutes; add app paths here when a new top-level route appears.
 
 const APP_PATHS = [
   "admin",
@@ -17,20 +19,10 @@ const APP_PATHS = [
   "sitemap.xml",
 ];
 
-const MODULE_PATHS = [
-  "blog",
-  "gallery",
-  "videos",
-  "shop",
-  "cart",
-  "checkout",
-  "orders",
-  "directory",
-  "booking",
-  "bookings",
-];
-
-export const RESERVED_SLUGS: ReadonlySet<string> = new Set([...APP_PATHS, ...MODULE_PATHS]);
+export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
+  ...APP_PATHS,
+  ...reservedModulePaths(),
+]);
 
 export const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 

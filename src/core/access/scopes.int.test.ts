@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 
 import type { Database } from "@/core/supabase/database.types";
 
+import { listModules } from "@/core/modules/registry";
+
 import { SCOPES } from "./scopes";
 
 // Integration test: needs local Supabase (`pnpm db:start`). Run with `pnpm test:int`.
@@ -44,5 +46,15 @@ describe("scope registry", () => {
       .map((scope) => scope.key)
       .sort();
     expect((data ?? []).map((row) => row.key)).toEqual(moduleKeys);
+  });
+
+  it("has a module manifest for every modules row", async () => {
+    const { data, error } = await localClient().from("modules").select("key").order("key");
+    expect(error).toBeNull();
+    expect(
+      listModules()
+        .map((m) => m.key)
+        .sort(),
+    ).toEqual((data ?? []).map((row) => row.key));
   });
 });

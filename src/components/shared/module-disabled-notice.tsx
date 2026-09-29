@@ -1,18 +1,33 @@
 import { PowerOff } from "lucide-react";
+import Link from "next/link";
 
 import { getScope } from "@/core/access/scopes";
 
-/** Shown to the super admin on a page whose module is turned off (staff get a 404 instead). */
+/**
+ * Shown to the super admin above a turned-off module's admin page, whose data then renders
+ * read-only (staff get a 404 instead). Edit controls hide themselves because
+ * context.check({ scope, action: "edit" }) is "module_disabled", not "allowed".
+ */
 export function ModuleDisabledNotice({ scope }: { scope: string }) {
   const label = getScope(scope)?.label ?? scope;
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed bg-muted px-6 py-16 text-center">
-      <PowerOff aria-hidden className="size-8 text-muted-foreground" />
-      <h2 className="text-lg font-semibold">This module is turned off</h2>
-      <p className="max-w-md text-sm text-muted-foreground">
-        {label} is disabled for this site, so staff can&apos;t see it and nothing new can be
-        created. Existing data is kept. Turn it on from Modules to use it again.
-      </p>
+    <div
+      role="status"
+      data-testid="module-disabled-notice"
+      className="flex gap-3 rounded-lg border border-dashed bg-muted p-4 text-sm"
+    >
+      <PowerOff aria-hidden className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+      <div className="space-y-1">
+        <p className="font-semibold">This module is turned off</p>
+        <p className="text-muted-foreground">
+          {label} is disabled for this site, so staff and visitors can&apos;t see it and nothing can
+          be created, changed, or deleted. Its data is kept and shown here read-only.{" "}
+          <Link href="/admin/modules" className="font-medium text-foreground underline">
+            Turn it on from Modules
+          </Link>{" "}
+          to use it again.
+        </p>
+      </div>
     </div>
   );
 }

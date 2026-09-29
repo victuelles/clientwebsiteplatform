@@ -1,6 +1,7 @@
 import type { AccessContext } from "@/core/access/context";
 import type { AccessRequirement } from "@/core/access/decide";
-import { SCOPES } from "@/core/access/scopes";
+import type { IconKey } from "@/core/icons/registry";
+import { adminNavItems } from "@/core/modules/registry";
 
 export type NavIcon =
   | "dashboard"
@@ -13,7 +14,14 @@ export type NavIcon =
   | "settings"
   | "audit";
 
-export type NavItem = { title: string; href: string; icon: NavIcon; description: string };
+export type NavItem = {
+  title: string;
+  href: string;
+  icon: NavIcon;
+  /** A module's own icon (curated icon key); used instead of `icon` when set. */
+  moduleIcon?: IconKey;
+  description: string;
+};
 export type NavGroup = { label: string; items: NavItem[] };
 
 type NavConfigItem = NavItem & { requires: AccessRequirement };
@@ -60,13 +68,15 @@ const NAV_CONFIG: { label: string; items: NavConfigItem[] }[] = [
   },
   {
     label: "Modules",
-    // One item per module; shown only when the module is enabled and the user has 'view'.
-    items: SCOPES.filter((scope) => scope.kind === "module").map((scope) => ({
-      title: scope.label,
-      href: `/admin/${scope.key.replaceAll("_", "-")}`,
+    // From the module registry. check() is "module_disabled" (not "allowed") while a module is
+    // off, so its items disappear for everyone; the super admin reaches it from Modules.
+    items: adminNavItems().map((item) => ({
+      title: item.label,
+      href: item.href,
       icon: "module" as const,
-      description: scope.label,
-      requires: { scope: scope.key, action: "view" as const },
+      moduleIcon: item.icon,
+      description: item.label,
+      requires: { scope: item.moduleKey, action: item.action },
     })),
   },
   {

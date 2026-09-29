@@ -45,6 +45,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { signOut } from "@/core/auth/actions";
+import { SiteIcon } from "@/core/icons/icon";
 
 import type { NavGroup, NavIcon } from "./nav";
 
@@ -151,7 +152,11 @@ export function AdminSidebar({
                             />
                           }
                         >
-                          <Icon aria-hidden />
+                          {item.moduleIcon ? (
+                            <SiteIcon name={item.moduleIcon} strokeWidth={2} />
+                          ) : (
+                            <Icon aria-hidden />
+                          )}
                           <span>{item.title}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
