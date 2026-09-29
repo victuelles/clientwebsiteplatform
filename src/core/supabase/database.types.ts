@@ -36,6 +36,53 @@ export type Database = {
         };
         Relationships: [];
       };
+      contact_submissions: {
+        Row: {
+          company: string | null;
+          created_at: string;
+          email: string;
+          id: string;
+          message: string;
+          name: string;
+          page_id: string | null;
+          phone: string | null;
+          source_url: string | null;
+          status: Database["public"]["Enums"]["submission_status"];
+        };
+        Insert: {
+          company?: string | null;
+          created_at?: string;
+          email: string;
+          id?: string;
+          message: string;
+          name: string;
+          page_id?: string | null;
+          phone?: string | null;
+          source_url?: string | null;
+          status?: Database["public"]["Enums"]["submission_status"];
+        };
+        Update: {
+          company?: string | null;
+          created_at?: string;
+          email?: string;
+          id?: string;
+          message?: string;
+          name?: string;
+          page_id?: string | null;
+          phone?: string | null;
+          source_url?: string | null;
+          status?: Database["public"]["Enums"]["submission_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contact_submissions_page_id_fkey";
+            columns: ["page_id"];
+            isOneToOne: false;
+            referencedRelation: "pages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       media_assets: {
         Row: {
           alt_text: string | null;
@@ -170,6 +217,75 @@ export type Database = {
           },
         ];
       };
+      menu_items: {
+        Row: {
+          created_at: string;
+          id: string;
+          label: string;
+          link: NonNullable<Json>;
+          menu_id: string;
+          open_in_new_tab: boolean;
+          parent_id: string | null;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          label: string;
+          link: NonNullable<Json>;
+          menu_id: string;
+          open_in_new_tab?: boolean;
+          parent_id?: string | null;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          label?: string;
+          link?: NonNullable<Json>;
+          menu_id?: string;
+          open_in_new_tab?: boolean;
+          parent_id?: string | null;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "menu_items_menu_id_fkey";
+            columns: ["menu_id"];
+            isOneToOne: false;
+            referencedRelation: "menus";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "menu_items_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "menu_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      menus: {
+        Row: {
+          id: string;
+          key: string;
+          title: string | null;
+        };
+        Insert: {
+          id?: string;
+          key: string;
+          title?: string | null;
+        };
+        Update: {
+          id?: string;
+          key?: string;
+          title?: string | null;
+        };
+        Relationships: [];
+      };
       modules: {
         Row: {
           enabled: boolean;
@@ -199,6 +315,168 @@ export type Database = {
           },
           {
             foreignKeyName: "modules_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      page_revisions: {
+        Row: {
+          id: string;
+          page_id: string;
+          published_at: string;
+          published_by: string | null;
+          sections: NonNullable<Json>;
+        };
+        Insert: {
+          id?: string;
+          page_id: string;
+          published_at?: string;
+          published_by?: string | null;
+          sections: NonNullable<Json>;
+        };
+        Update: {
+          id?: string;
+          page_id?: string;
+          published_at?: string;
+          published_by?: string | null;
+          sections?: NonNullable<Json>;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "page_revisions_page_id_fkey";
+            columns: ["page_id"];
+            isOneToOne: false;
+            referencedRelation: "pages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "page_revisions_published_by_fkey";
+            columns: ["published_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      page_sections: {
+        Row: {
+          anchor_id: string | null;
+          background: string;
+          created_at: string;
+          id: string;
+          is_hidden: boolean;
+          padding: string;
+          page_id: string;
+          props: NonNullable<Json>;
+          sort_order: number;
+          type: string;
+          updated_at: string;
+        };
+        Insert: {
+          anchor_id?: string | null;
+          background?: string;
+          created_at?: string;
+          id?: string;
+          is_hidden?: boolean;
+          padding?: string;
+          page_id: string;
+          props?: NonNullable<Json>;
+          sort_order: number;
+          type: string;
+          updated_at?: string;
+        };
+        Update: {
+          anchor_id?: string | null;
+          background?: string;
+          created_at?: string;
+          id?: string;
+          is_hidden?: boolean;
+          padding?: string;
+          page_id?: string;
+          props?: NonNullable<Json>;
+          sort_order?: number;
+          type?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "page_sections_page_id_fkey";
+            columns: ["page_id"];
+            isOneToOne: false;
+            referencedRelation: "pages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pages: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          is_home: boolean;
+          og_image_media_id: string | null;
+          published_at: string | null;
+          published_sections: NonNullable<Json>;
+          seo_description: string | null;
+          seo_title: string | null;
+          slug: string;
+          status: Database["public"]["Enums"]["page_status"];
+          title: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_home?: boolean;
+          og_image_media_id?: string | null;
+          published_at?: string | null;
+          published_sections?: NonNullable<Json>;
+          seo_description?: string | null;
+          seo_title?: string | null;
+          slug: string;
+          status?: Database["public"]["Enums"]["page_status"];
+          title: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_home?: boolean;
+          og_image_media_id?: string | null;
+          published_at?: string | null;
+          published_sections?: NonNullable<Json>;
+          seo_description?: string | null;
+          seo_title?: string | null;
+          slug?: string;
+          status?: Database["public"]["Enums"]["page_status"];
+          title?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pages_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pages_og_image_media_id_fkey";
+            columns: ["og_image_media_id"];
+            isOneToOne: false;
+            referencedRelation: "media_assets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pages_updated_by_fkey";
             columns: ["updated_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
@@ -437,6 +715,8 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      _publish_page: { Args: { actor: string; page: string }; Returns: number };
+      _replace_draft_sections: { Args: { page: string; sections: Json }; Returns: number };
       admin_list_staff: {
         Args: { target_user?: string };
         Returns: {
@@ -464,6 +744,7 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: Database["public"]["Enums"]["app_role"];
       };
+      discard_draft: { Args: { page: string }; Returns: undefined };
       get_my_permissions: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -487,7 +768,13 @@ export type Database = {
         };
         Returns: undefined;
       };
+      media_ids_in: { Args: { doc: Json }; Returns: string[] };
       module_enabled: { Args: { scope_key: string }; Returns: boolean };
+      page_draft_snapshot: { Args: { page: string }; Returns: Json };
+      publish_page: { Args: { page: string }; Returns: undefined };
+      reorder_sections: { Args: { ordered_ids: string[]; page: string }; Returns: undefined };
+      restore_revision: { Args: { revision: string }; Returns: undefined };
+      set_home_page: { Args: { page: string }; Returns: undefined };
       set_media_reference: {
         Args: { entity_id: string; entity_table: string; field: string; media_id: string };
         Returns: undefined;
@@ -502,11 +789,31 @@ export type Database = {
         Args: { new_role: Database["public"]["Enums"]["app_role"]; target_user: string };
         Returns: undefined;
       };
+      submit_contact_form: {
+        Args: {
+          company?: string;
+          email: string;
+          message: string;
+          name: string;
+          page_id: string;
+          phone?: string;
+          source_url?: string;
+        };
+        Returns: string;
+      };
+      sync_media_references: {
+        Args: { entity_id: string; entity_table: string; field: string; media_ids: string[] };
+        Returns: undefined;
+      };
+      system_publish_page: { Args: { page: string }; Returns: undefined };
+      unpublish_page: { Args: { page: string }; Returns: undefined };
       update_site_settings: { Args: { changes: Json }; Returns: string[] };
     };
     Enums: {
       app_role: "super_admin" | "staff" | "user";
+      page_status: "draft" | "published";
       permission_action: "view" | "create" | "edit" | "delete" | "publish";
+      submission_status: "new" | "read" | "archived";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -619,7 +926,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "staff", "user"],
+      page_status: ["draft", "published"],
       permission_action: ["view", "create", "edit", "delete", "publish"],
+      submission_status: ["new", "read", "archived"],
     },
   },
 } as const;
