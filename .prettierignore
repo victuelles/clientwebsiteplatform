@@ -10,3 +10,6 @@ test-results
 supabase/.temp
 supabase/.branches
 supabase/templates
+# Phase briefs are written by the project owner; keep them exactly as written.
+docs/phases/phase-*.md
+!docs/phases/phase-*-notes.md
