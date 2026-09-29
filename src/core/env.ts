@@ -13,7 +13,6 @@ const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
 const requiredString = () => z.preprocess(emptyToUndefined, z.string().trim().min(1));
 const optionalString = () => z.preprocess(emptyToUndefined, z.string().trim().min(1).optional());
 const requiredUrl = () => z.preprocess(emptyToUndefined, z.url());
-const optionalEmail = () => z.preprocess(emptyToUndefined, z.email().optional());
 const optionalPrefixed = (...prefixes: string[]) =>
   z.preprocess(
     emptyToUndefined,
@@ -37,7 +36,8 @@ export const clientSchema = z.object({
 /** Variables that must never reach the browser. */
 export const serverSchema = z.object({
   SUPABASE_SECRET_KEY: requiredString(),
-  SUPER_ADMIN_EMAIL: optionalEmail(),
+  // The account that becomes the super admin on first confirmed sign-in (Phase 1 bootstrap).
+  SUPER_ADMIN_EMAIL: z.preprocess(emptyToUndefined, z.email()),
   STRIPE_SECRET_KEY: optionalPrefixed("sk_", "rk_"),
   STRIPE_WEBHOOK_SECRET: optionalPrefixed("whsec_"),
   RESEND_API_KEY: optionalString(),

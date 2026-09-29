@@ -7,6 +7,7 @@ const validEnv = {
   NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test",
   SUPABASE_SECRET_KEY: "sb_secret_test",
+  SUPER_ADMIN_EMAIL: "owner@example.com",
 };
 
 describe("parseEnv", () => {
