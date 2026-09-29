@@ -46,24 +46,34 @@ src/
   app/
     (public)/            public site routes; placeholder header with sign-in indicator
       (auth)/            sign-in, sign-up, forgot-password, reset-password (+ actions.ts)
+      (auth)/auth/set-password/  password setup for invited staff
       auth/              route handlers: confirm (token_hash), callback (PKCE code), disabled
       account/           signed-in user's profile page
       not-authorized/
-    (admin)/admin/       admin routes (placeholder shell until Phase 2); loading.tsx lives here
+    (admin)/admin/       admin portal: layout (shell + PermissionsProvider), dashboard
+      _shell/            sidebar, nav config (buildNav), AdminPageHeader, PhasePlaceholder
+      staff/             staff list, invite, detail + permission matrix (super admin)
+      audit/             audit log viewer (super admin)
+      content/ media/ modules/ settings/   guarded placeholders for later phases
     api/health/          GET /api/health
     layout.tsx, globals.css, not-found.tsx, error.tsx
   core/                  platform code shared by everything
     env.ts               the ONLY place env vars are read
     site.ts              static site identity (replaced by DB settings in Phase 3)
-    auth/                session (getCurrentUser/getCurrentProfile), guards, bootstrap, schemas,
+    access/              THE access guard: scopes.ts (registry), decide.ts (pure decisions),
+                         context.ts (getAccessContext), guard.ts (requireAccess & co.),
+                         protected-action.ts, protected-route.ts, permissions-provider.tsx
+    auth/                session (getCurrentUser/getCurrentProfile), bootstrap, schemas,
                          redirects (safeNextPath), sign-in finishing, messages, signOut action
+    settings/            getSiteSettings() (site_settings row)
     supabase/            client.ts (browser), server.ts, admin.ts, proxy.ts, database.types.ts
-                         later: settings/, sections/, access guard (Phase 2), module registry
+                         later: sections/, module registry
   modules/               one folder per optional module (from Phase 6)
   components/ui/         shadcn components (generated; edit sparingly)
   components/shared/     site components shared across core and modules
   lib/                   small generic utilities (no Supabase, no business logic)
-  proxy.ts               Supabase session refresh only
+  proxy.ts               Supabase session refresh, x-pathname header, optimistic /admin
+                         no-cookie redirect (speed only; not security)
 supabase/
   migrations/            the schema (single source of truth)
   tests/                 pgTAP tests (database/*.test.sql) + helpers.psql
@@ -108,7 +118,7 @@ docs/phases/             phase-N.md = the brief for phase N; phase-N-notes.md = 
 | `permission_scopes` | Areas a permission applies to. Core: `content`, `media`. Module: `blog`, `photo_gallery`, `video_gallery`, `shop`, `directory`, `inventory`, `crm`, `booking`, `email_marketing` |
 | `modules`           | `enabled` flag per module scope (all start disabled)                                                                                                                             |
 | `staff_permissions` | `(user_id, scope, action)` grants; never updated, only inserted/deleted                                                                                                          |
-| `audit_log`         | Append-only log, written only by security definer functions                                                                                                                      |
+| `audit_log`         | Append-only log, written only by security definer functions (`log_audit`, admin functions)                                                                                       |
 
 Enums: `app_role` (`super_admin`, `staff`, `user`), `permission_action` (`view`, `create`, `edit`,
 `delete`, `publish`). Seeds that every client needs (scopes, modules, the settings row) live in
@@ -127,8 +137,11 @@ All are `stable security definer set search_path = ''`, executable by anon and a
 | `has_permission(scope, action)` | super admin, or active staff with that grant                 | Rare: permission regardless of module   |
 | `can(scope, action)`            | `module_enabled(scope) and has_permission(scope, action)`    | **Staff/admin reads and writes**        |
 
-Admin functions (super admin only, audited, readable exceptions): `set_user_role`,
-`set_user_active`, `set_module_enabled`. `log_audit(action, scope, target_table, target_id,
+Admin functions (super admin only, audited, readable exceptions): `set_user_role` (leaving staff
+deletes all grants), `set_user_active`, `set_module_enabled`, `set_staff_permissions(user, jsonb)`
+(atomic replace, one audit entry with added/removed), `admin_list_staff(user?)` (staff with
+invite state and last sign-in). `get_my_permissions()` returns the caller's effective
+(scope, action) rows (all of them for the super admin). `log_audit(action, scope, target_table, target_id,
 metadata)` records an action by the signed-in user. `bootstrap_super_admin` is service_role only.
 
 ### Policy pattern (every future table)
@@ -158,8 +171,9 @@ comment block and the `orders` example at the top of
    (at least `truncate, references, trigger` from anon and authenticated), and use column grants
    when users may update only some columns. Add pgTAP tests in `supabase/tests/database/` for
    every new table's policies.
-4. **Owner column**: every user-owned table has an owner column named `user_id uuid not null
-references public.profiles (id)`; ownership policies compare it to `(select auth.uid())`.
+4. **Owner column**: every user-owned table has an owner column named
+   `user_id uuid not null references public.profiles (id)`; ownership policies compare it to
+   `(select auth.uid())`.
 5. **SQL functions**: always `set search_path = ''` and fully qualified names (`public.profiles`,
    `auth.uid()`, `extensions.citext`). Revoke `execute` from `public` (and `anon` where needed) and
    grant it explicitly.
@@ -167,10 +181,11 @@ references public.profiles (id)`; ownership policies compare it to `(select auth
    (`pnpm db:migration:new <name>`). Never edit the schema in the dashboard. After each migration,
    run `pnpm db:reset`, `pnpm test:db`, and `pnpm db:types`, and commit the regenerated
    `database.types.ts` (CI fails if it is out of date).
-7. **One access guard**: every admin page, server action, and route handler checks module status,
-   role permission, and record ownership through the single shared access guard (built in Phase 2).
-   Do not write ad hoc permission checks. Until then use the temporary guards in
-   `src/core/auth/guards.ts` (`requireUser`, `requireStaffOrAdmin`, `requireSuperAdmin`).
+7. **One access guard**: every admin page, server action, and route handler goes through
+   `src/core/access` (see "How to protect things" below) and nothing else. Never compare
+   `profile.role` or read `is_active` to make an access decision anywhere else; add a requirement
+   type to `decide.ts` instead. RLS enforces the same rules again in the database.
+   `PermissionsProvider` / `usePermissions()` only hide UI and are **never** a security check.
 8. **Disabling a module** hides its UI and blocks new operations, but never deletes data.
 9. **Design fidelity**: UI must match `docs/design/` at mobile (390px) and desktop (1440px) widths.
    Use shadcn components and theme tokens (`bg-accent`, `bg-navy`, `text-muted-foreground`,
@@ -188,18 +203,95 @@ references public.profiles (id)`; ownership policies compare it to `(select auth
     `docs/phases/phase-N-notes.md` (the brief itself is `docs/phases/phase-N.md`; never overwrite
     it) and update "Current state" below.
 
+## How to protect things
+
+Every request is checked three ways: **module status**, **role permission**, and **record
+ownership**. The app guard checks the first two before any work; RLS checks all three again.
+Every new admin page, server action, and route handler MUST use one of these, and nothing else.
+
+**Admin page** (Server Component):
+
+```tsx
+export default async function BlogPostsPage() {
+  const { context, moduleDisabled } = await requireAccess({ scope: "blog", action: "view" });
+  if (moduleDisabled) return <ModuleDisabledNotice scope="blog" />; // super admin only; staff got a 404
+  // ... fetch with the server client (RLS applies) and render
+}
+// Super-admin-only areas: `await requireSuperAdmin()`. Any staff: `await requireStaffOrAdmin()`.
+// Any signed-in user (e.g. /account): `await requireUser()`.
+```
+
+**Server action** (in a `"use server"` file):
+
+```ts
+export const publishPost = protectedAction({
+  scope: "blog",
+  action: "publish", // or { role: "super_admin" | "staff_or_admin" | "signed_in" }
+  schema: z.object({ postId: z.uuid() }),
+  audit: {
+    action: "blog.post_published",
+    target: (input) => ({ table: "blog_posts", id: input.postId }),
+  },
+  handler: async ({ input, context, supabase }) => {
+    const { error } = await supabase
+      .from("blog_posts")
+      .update({ status: "published" })
+      .eq("id", input.postId);
+    if (error) throw toActionError(error); // readable SQL errors pass through; others stay generic
+    return { postId: input.postId };
+  },
+});
+// Returns { ok: true, data } | { ok: false, error, fieldErrors? }. Throw ActionError("...") for a
+// safe user-facing message. redirect()/notFound() inside handlers still work.
+```
+
+**Route handler**:
+
+```ts
+export const POST = protectedRoute(
+  { scope: "shop", action: "edit" },
+  async (request, { context }) => {
+    // 401/403/404 JSON and the same-origin check for mutating methods are already handled.
+    return Response.json({ ok: true });
+  },
+);
+```
+
+**Matching RLS policy** (same migration as the table; module status + permission + ownership):
+
+```sql
+create policy "Customers read their own orders while the shop is on"
+  on public.orders for select to authenticated
+  using (user_id = (select auth.uid()) and (select public.module_enabled('shop')));
+
+create policy "Staff with shop:edit update orders"
+  on public.orders for update to authenticated
+  using ((select public.can('shop', 'edit')))
+  with check ((select public.can('shop', 'edit')));
+```
+
+Exceptions: the public auth actions (sign-in, sign-up, magic link, password reset request) are
+the only unguarded server actions; webhooks (later phases) verify signatures instead and use the
+admin client. Adding a scope means a migration **and** `src/core/access/scopes.ts` (`pnpm test:int`
+fails if they drift).
+
 ## Auth
 
 - Verify identity on the server with `getCurrentUser()` (uses `supabase.auth.getClaims()`, which
   checks the JWT signature). Never trust `getSession()` on the server.
-- `getCurrentProfile()` (React `cache()`d) returns the active profile or null.
+- `getCurrentProfile()` (React `cache()`d) returns the active profile or null. For access
+  decisions use `getAccessContext()` (profile + permissions + modules, cached per request).
 - Every successful sign-in path (password, magic link, email confirm, code exchange) ends in
   `finishSignIn()`: bootstrap check, deactivated-account sign-out, then redirect to a validated
   `next` or `/admin` (staff/super admin) / `/account` (user).
 - Validate every user-supplied redirect with `safeNextPath()`.
 - Auth error messages never reveal whether an email is registered (`src/core/auth/messages.ts`).
-- Guards redirect from layouts/pages. Do not add a `loading.tsx` above a guarded layout: a Suspense
-  boundary above the guard turns its redirect into a streamed 200 instead of a 307.
+- Guards redirect from layouts/pages. Do not add a `loading.tsx` anywhere above a guarded page or
+  layout (including inside `/admin`, where every page has its own guard): a Suspense boundary
+  above the guard turns its redirect into a streamed 200 instead of a 307. Use `<Suspense>` inside
+  a page, below the guard, for slow sections.
+- Staff invitations: `inviteUserByEmail` (admin client, only inside a super-admin
+  `protectedAction`), link `/auth/confirm?type=invite` → `/auth/set-password`.
 - Password policy: 10+ characters with lowercase, uppercase, and a digit (Zod schema and Supabase
   Auth settings must agree).
 
@@ -214,6 +306,7 @@ pnpm format / format:check    # Prettier
 pnpm test                     # Vitest unit tests (src/**/*.test.ts)
 pnpm test:e2e                 # Playwright vs local Supabase (production build on :3100)
 pnpm test:db                  # pgTAP database tests (supabase/tests)
+pnpm test:int                 # integration tests vs local Supabase (src/**/*.int.test.ts)
 
 pnpm db:start | db:stop | db:status        # local Supabase (Docker)
 pnpm db:migration:new <name>               # new migration file
@@ -227,8 +320,8 @@ After changing `supabase/config.toml` or `supabase/templates/`, restart local Su
 (`pnpm db:stop && pnpm db:start`); `db:reset` does not reload them.
 
 CI (`.github/workflows/ci.yml`) has two jobs: (1) lint, typecheck, format:check, unit tests, and
-build with `SKIP_ENV_VALIDATION=1`; (2) local Supabase, pgTAP tests, a generated-types drift check,
-and Playwright e2e.
+build with `SKIP_ENV_VALIDATION=1`; (2) local Supabase, pgTAP tests, integration tests, a
+generated-types drift check, and Playwright e2e.
 
 Local test accounts (after `pnpm db:reset`): `superadmin@example.test`, `staff@example.test`,
 `user@example.test`, all with password `Password123!`. Local emails: Mailpit at
@@ -236,30 +329,29 @@ http://127.0.0.1:54324.
 
 ## Current state
 
-**Phase 1 (Core database, auth, and roles) is complete.** What exists:
+**Phase 2 (Access control and admin shell) is complete.** What exists:
 
-- Everything from Phase 0 (see `docs/phases/phase-0-notes.md`).
-- Migrations: shared utilities (`set_updated_at`, enums), `profiles` (+ auth sync triggers, role
-  helpers), `site_settings` / `permission_scopes` / `modules` (seeded), `staff_permissions`,
-  access helpers, `audit_log` + admin functions, `bootstrap_super_admin`. RLS on every table.
-- `supabase/seed.sql` with local test accounts; `supabase/templates/` email templates.
-- `src/core/auth/`: verified session helpers, temporary role guards, super admin bootstrap,
-  shared Zod schemas, `safeNextPath()`, `finishSignIn()`, `signOut`.
-- Pages: `/sign-in` (password + magic link), `/sign-up`, `/forgot-password`, `/reset-password`,
-  `/account`, `/not-authorized`; route handlers `/auth/confirm`, `/auth/callback`,
-  `/auth/disabled`. `/admin` requires staff or super admin and shows the signed-in identity.
-- `SUPER_ADMIN_EMAIL` is required.
-- Tests: 115 pgTAP assertions, Vitest (env, bootstrap decision, redirect validator), Playwright
-  (smoke + auth flows at 1440px and 390px). CI runs all of them.
+- Everything from Phases 0 and 1 (see `docs/phases/phase-0-notes.md`, `phase-1-notes.md`).
+- SQL: `get_my_permissions`, `set_staff_permissions`, `admin_list_staff` (+ pgTAP tests).
+- `src/core/access/`: scope registry (+ drift test), `decideAccess`, `getAccessContext`,
+  `requireAccess` / `requireSuperAdmin` / `requireStaffOrAdmin` / `requireUser`,
+  `protectedAction`, `protectedRoute`, `PermissionsProvider` (UI hiding only).
+- Proxy: optimistic no-cookie redirect for `/admin`, `x-pathname` header for guards.
+- Admin shell: navy sidebar (collapsible, sheet on mobile), permission-filtered nav, breadcrumbs,
+  dashboard (areas + health), guarded placeholders for Content, Media, Modules, Settings.
+- `/admin/staff` (invite, promote existing user, permission matrix, deactivate/reactivate,
+  demote, resend invite), `/auth/set-password`, `/admin/audit` (filters, pagination, drawer).
+- Tests: 148 pgTAP assertions, 77 unit tests, integration drift test, 25 e2e tests (desktop +
+  390px). CI runs all of them.
 
-Not yet built: `requireAccess()` guard and admin shell (Phase 2), staff invites and permission
-editing UI, branding/media (Phase 3), homepage sections, module registry, modules.
+Not yet built: branding, settings, media library (Phase 3), homepage sections (Phase 4), module
+registry and module switches (Phase 5), modules.
 
 ## Phase roadmap
 
 0. Foundation ✅
 1. Core database, auth, and roles ✅
-2. Access control and admin shell
+2. Access control and admin shell ✅
 3. Branding, settings, and media library
 4. Homepage section builder and pages
 5. Module framework

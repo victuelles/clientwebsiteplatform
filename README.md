@@ -167,6 +167,7 @@ Do this in each client's Supabase dashboard. Local development gets the same set
 - [ ] **Site URL** (Authentication → URL Configuration): `https://<client-domain>`.
 - [ ] **Redirect URLs** (same page): add `https://<client-domain>/**` and, if you use Vercel
       previews, `https://<vercel-project>-*-<vercel-team>.vercel.app/**`.
+      The `/**` pattern also covers `/auth/set-password` (invitations) and `/auth/callback`.
 - [ ] **Email confirmations on** (Authentication → Sign In / Providers → Email → "Confirm email").
 - [ ] **Password policy** (same page): minimum length **10**, and require lowercase, uppercase
       letters, and digits. This must match the sign-up form's rules.
@@ -181,6 +182,10 @@ Do this in each client's Supabase dashboard. Local development gets the same set
   - Reset password: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`
   - Change email address:
     `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change`
+  - Invite user (staff invitations):
+    `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite`. This one is required:
+    invitations sent from `/admin/staff` do not work with the default invite template, which
+    uses a link format this app does not handle.
 
   (Default templates still work through `/auth/callback`, but the token_hash links also work
   when the email is opened in a different browser.)
