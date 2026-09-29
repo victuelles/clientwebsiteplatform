@@ -223,6 +223,9 @@ pnpm db:types                              # regenerate types from the local DB
 pnpm db:types:linked                       # regenerate types from the linked project
 ```
 
+After changing `supabase/config.toml` or `supabase/templates/`, restart local Supabase
+(`pnpm db:stop && pnpm db:start`); `db:reset` does not reload them.
+
 CI (`.github/workflows/ci.yml`) has two jobs: (1) lint, typecheck, format:check, unit tests, and
 build with `SKIP_ENV_VALIDATION=1`; (2) local Supabase, pgTAP tests, a generated-types drift check,
 and Playwright e2e.
