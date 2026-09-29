@@ -25,8 +25,8 @@ test.describe.serial("staff lifecycle", () => {
 
     await page.goto("/admin/staff");
     await page.getByRole("button", { name: "Invite staff" }).click();
-    await page.getByLabel("Name").fill("Edith E2E");
-    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Name", { exact: true }).fill("Edith E2E");
+    await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByRole("button", { name: "Send invitation" }).click();
 
     await expect(page).toHaveURL(/\/admin\/staff\/[0-9a-f-]{36}$/);

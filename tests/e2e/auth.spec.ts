@@ -7,9 +7,9 @@ test("sign up, confirm by email, sign in, and land on /account", async ({ page }
   const password = "E2eStrongPass1";
 
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("E2E Person");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Name", { exact: true }).fill("E2E Person");
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByRole("status")).toContainText("Check your email");
 
@@ -21,7 +21,8 @@ test("sign up, confirm by email, sign in, and land on /account", async ({ page }
   await expect(page.getByTestId("account-email")).toHaveText(email);
 
   await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("link", { name: "Sign in" }).first()).toBeVisible();
 
   await signIn(page, email, password);
   await expect(page).toHaveURL(/\/account$/);

@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { expect, type Page } from "@playwright/test";
 
 export const PASSWORD = "Password123!";
@@ -10,8 +11,8 @@ export const SEEDED = {
 
 export async function signIn(page: Page, email: string, password = PASSWORD) {
   await page.goto("/sign-in");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
@@ -47,4 +48,51 @@ export async function emailLinkPath(to: string): Promise<string> {
     .toBe(true);
 
   return path!;
+}
+
+/** Service-role client for LOCAL test setup only (never used by the app). */
+export function localAdminClient() {
+  return createClient(process.env.E2E_SUPABASE_URL!, process.env.E2E_SUPABASE_SECRET_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+/** A client signed in as a user, to try direct API calls the way a browser could. */
+export async function localUserClient(email: string, password = PASSWORD) {
+  const client = createClient(
+    process.env.E2E_SUPABASE_URL!,
+    process.env.E2E_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+    },
+  );
+  const { error } = await client.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return client;
+}
+
+/** Creates a confirmed staff member with exactly these permissions. Returns the email. */
+export async function createStaff(
+  label: string,
+  permissions: { scope: string; action: "view" | "create" | "edit" | "delete" | "publish" }[],
+) {
+  const admin = localAdminClient();
+  const email = `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.test`;
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password: PASSWORD,
+    email_confirm: true,
+    user_metadata: { full_name: label },
+  });
+  if (error || !data.user) throw error ?? new Error("createUser failed");
+  const id = data.user.id;
+  const role = await admin.from("profiles").update({ role: "staff" }).eq("id", id);
+  if (role.error) throw role.error;
+  if (permissions.length) {
+    const grants = await admin
+      .from("staff_permissions")
+      .insert(permissions.map((p) => ({ user_id: id, ...p })));
+    if (grants.error) throw grants.error;
+  }
+  return email;
 }

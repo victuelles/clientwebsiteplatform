@@ -37,8 +37,13 @@ function localSupabaseEnv(): Record<string, string> {
 }
 
 const supabaseEnv = localSupabaseEnv();
-// Exposed to the tests (for the Mailpit API).
+// Exposed to the tests: Mailpit, and local Supabase keys for creating test users (helpers.ts).
 process.env.MAILPIT_URL = supabaseEnv.MAILPIT_URL;
+process.env.E2E_SUPABASE_URL = supabaseEnv.NEXT_PUBLIC_SUPABASE_URL;
+process.env.E2E_SUPABASE_PUBLISHABLE_KEY = supabaseEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+process.env.E2E_SUPABASE_SECRET_KEY = supabaseEnv.SUPABASE_SECRET_KEY;
+
+const desktop = { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } };
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -51,13 +56,18 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    {
-      name: "desktop",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
-    },
+    { name: "desktop", use: desktop, testIgnore: /branding\.spec\.ts/ },
     {
       name: "mobile",
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } },
+      testIgnore: /branding\.spec\.ts/,
+    },
+    // Tests that change site-wide settings run last, alone, so they never disturb other tests.
+    {
+      name: "branding",
+      use: desktop,
+      testMatch: /branding\.spec\.ts/,
+      dependencies: ["desktop", "mobile"],
     },
   ],
   // A production build, so tests can run while `pnpm dev` is running (Next.js allows one dev
