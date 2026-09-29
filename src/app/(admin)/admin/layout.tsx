@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -9,6 +10,9 @@ import { getSiteSettings } from "@/core/settings/get-settings";
 
 import { AdminSidebar } from "./_shell/admin-sidebar";
 import { buildNav } from "./_shell/nav";
+
+// The admin area is never indexed, even after launch.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 // The admin shell. Requires active staff or the super admin; each page adds its own
 // requireAccess()/requireSuperAdmin() for its scope.

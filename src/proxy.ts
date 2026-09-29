@@ -18,6 +18,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Every path except static assets, image optimization, the health check, and common files.
-    "/((?!_next/static|_next/image|api/health|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico)$).*)",
+    "/((?!_next/static|_next/image|api/health|brand-icon|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico)$).*)",
   ],
 };
