@@ -1,6 +1,6 @@
 import "server-only";
 
-import { TriangleAlert } from "lucide-react";
+import { PowerOff, TriangleAlert } from "lucide-react";
 
 import { SiteContainer } from "@/components/site/container";
 import {
@@ -10,6 +10,7 @@ import {
   type SectionBackground,
   type SectionPadding,
 } from "@/core/sections/common";
+import { sectionUnavailableReason } from "@/core/sections/availability";
 import { getSectionDefinition } from "@/core/sections/registry";
 import type { SectionRecord } from "@/core/sections/types";
 
@@ -35,22 +36,36 @@ function SectionError({
   title,
   detail,
   preview,
+  notice = false,
 }: {
   id: string;
   title: string;
   detail: string;
   preview: boolean;
+  /** A neutral notice (module turned off) instead of an error. */
+  notice?: boolean;
 }) {
+  const Icon = notice ? PowerOff : TriangleAlert;
   return (
     <section data-section-id={preview ? id : undefined} className="bg-background py-10">
       <SiteContainer>
         <div
-          role="alert"
-          className="flex gap-3 border border-dashed border-destructive/50 bg-destructive/5 p-5 text-sm"
+          role={notice ? "status" : "alert"}
+          data-testid={notice ? "section-module-off" : undefined}
+          className={
+            notice
+              ? "flex gap-3 border border-dashed border-border bg-muted p-5 text-sm"
+              : "flex gap-3 border border-dashed border-destructive/50 bg-destructive/5 p-5 text-sm"
+          }
         >
-          <TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0 text-destructive" />
+          <Icon
+            aria-hidden
+            className={`mt-0.5 size-5 shrink-0 ${notice ? "text-muted-foreground" : "text-destructive"}`}
+          />
           <div>
-            <p className="font-semibold text-destructive">{title}</p>
+            <p className={`font-semibold ${notice ? "text-foreground" : "text-destructive"}`}>
+              {title}
+            </p>
             <p className="mt-1 text-muted-foreground">{detail}</p>
           </div>
         </div>
@@ -70,8 +85,18 @@ export async function RenderSections({
   sections: SectionRecord[];
   context: Shared;
 }) {
+  // Sections whose module is off are skipped publicly (before numbering, so the heading rule still
+  // gives the first shown section the h1) and flagged in the editor preview.
+  const modules = context.links.modules;
+  const shown = context.preview
+    ? sections
+    : sections.filter((section) => {
+        const definition = getSectionDefinition(section.type);
+        return !definition || sectionUnavailableReason(definition, modules) === null;
+      });
+
   const rendered = await Promise.all(
-    sections.map(async (section, index) => {
+    shown.map(async (section, index) => {
       const definition = getSectionDefinition(section.type);
       const Renderer = SECTION_RENDERERS[section.type];
       if (!definition || !Renderer) {
@@ -85,6 +110,20 @@ export async function RenderSections({
             detail="This section can't be displayed. Delete it or restore an earlier version."
           />
         ) : null;
+      }
+
+      const unavailable = sectionUnavailableReason(definition, modules);
+      if (unavailable) {
+        return (
+          <SectionError
+            key={section.id}
+            id={section.id}
+            preview
+            notice
+            title={`${definition.label}: module turned off`}
+            detail={unavailable}
+          />
+        );
       }
 
       const parsed = definition.schema.safeParse(section.props);

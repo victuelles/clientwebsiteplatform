@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { ACTIONS, SCOPES } from "@/core/access/scopes";
 import { emailSchema, fullNameSchema } from "@/core/auth/schemas";
+import { actionsForScope } from "@/core/modules/registry";
 
 const scopeKeys = SCOPES.map((scope) => scope.key) as [string, ...string[]];
 
@@ -18,6 +19,13 @@ export const staffPermissionsSchema = z.object({
         scope: z.enum(scopeKeys),
         action: z.enum(ACTIONS as unknown as [string, ...string[]]),
       }),
+    )
+    .refine(
+      (permissions) =>
+        permissions.every((p) =>
+          (actionsForScope(p.scope, ACTIONS) as readonly string[]).includes(p.action),
+        ),
+      "A module permission uses an action that module doesn't have.",
     )
     .max(SCOPES.length * ACTIONS.length),
 });

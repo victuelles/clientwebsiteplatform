@@ -40,6 +40,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SiteIcon } from "@/core/icons/icon";
+import { usePermissions } from "@/core/access/permissions-provider";
+import { isSectionAvailable } from "@/core/sections/availability";
 import { getSectionDefinition } from "@/core/sections/registry";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +86,8 @@ function Item({
     disabled: readOnly,
   });
   const label = definition?.label ?? section.type;
+  const { modules } = usePermissions();
+  const moduleOff = definition ? !isSectionAvailable(definition, modules) : false;
 
   return (
     <li
@@ -127,6 +131,15 @@ function Item({
         {section.isHidden && (
           <Badge variant="outline" className="shrink-0 text-[10px]">
             Hidden
+          </Badge>
+        )}
+        {moduleOff && (
+          <Badge
+            variant="outline"
+            className="shrink-0 text-[10px]"
+            title="Its module is turned off, so visitors don't see it."
+          >
+            Module off
           </Badge>
         )}
         {section.status === "saving" && (

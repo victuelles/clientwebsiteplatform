@@ -16,13 +16,19 @@ import {
 } from "@/components/ui/table";
 import type { Permission } from "@/core/access/decide";
 import { ACTION_LABELS, ACTIONS, SCOPES, type PermissionAction } from "@/core/access/scopes";
+import { actionsForScope, getModule } from "@/core/modules/registry";
 
 import { saveStaffPermissions } from "../actions";
 
 const key = (scope: string, action: string) => `${scope}:${action}`;
 
+/** Only the actions each scope uses (a module declares its own; grants for others are dropped). */
 function toSet(permissions: readonly Permission[]) {
-  return new Set(permissions.map((p) => key(p.scope, p.action)));
+  return new Set(
+    permissions
+      .filter((p) => actionsForScope(p.scope, ACTIONS).includes(p.action))
+      .map((p) => key(p.scope, p.action)),
+  );
 }
 
 function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>) {
@@ -63,7 +69,7 @@ export function PermissionMatrix({
   function toggleRow(scope: string, checked: boolean) {
     setSelected((current) => {
       const next = new Set(current);
-      for (const action of ACTIONS) {
+      for (const action of actionsForScope(scope, ACTIONS)) {
         if (checked) next.add(key(scope, action));
         else next.delete(key(scope, action));
       }
@@ -104,8 +110,10 @@ export function PermissionMatrix({
           </TableHeader>
           <TableBody>
             {SCOPES.map((scope) => {
-              const count = ACTIONS.filter((action) => selected.has(key(scope.key, action))).length;
+              const actions = actionsForScope(scope.key, ACTIONS);
+              const count = actions.filter((action) => selected.has(key(scope.key, action))).length;
               const enabled = scope.kind === "core" || modules[scope.key] === true;
+              const requires = getModule(scope.key)?.requiresModules ?? [];
               return (
                 <TableRow key={scope.key} data-testid={`permission-row-${scope.key}`}>
                   <TableCell>
@@ -120,24 +128,38 @@ export function PermissionMatrix({
                         </Badge>
                       )}
                     </div>
+                    {requires.length > 0 && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Requires {requires.map((r) => getModule(r)?.label ?? r).join(", ")}
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
                     <Checkbox
                       aria-label={`${scope.label}: all actions`}
-                      checked={count === ACTIONS.length}
-                      indeterminate={count > 0 && count < ACTIONS.length}
+                      checked={count === actions.length}
+                      indeterminate={count > 0 && count < actions.length}
                       onCheckedChange={(checked) => toggleRow(scope.key, checked === true)}
                       className="mx-auto border-muted-foreground/60 data-indeterminate:border-primary"
                     />
                   </TableCell>
                   {ACTIONS.map((action) => (
                     <TableCell key={action} className="text-center">
-                      <Checkbox
-                        aria-label={`${scope.label}: ${ACTION_LABELS[action]}`}
-                        checked={selected.has(key(scope.key, action))}
-                        onCheckedChange={(checked) => toggle(scope.key, action, checked === true)}
-                        className="mx-auto border-muted-foreground/60"
-                      />
+                      {actions.includes(action) ? (
+                        <Checkbox
+                          aria-label={`${scope.label}: ${ACTION_LABELS[action]}`}
+                          checked={selected.has(key(scope.key, action))}
+                          onCheckedChange={(checked) => toggle(scope.key, action, checked === true)}
+                          className="mx-auto border-muted-foreground/60"
+                        />
+                      ) : (
+                        <span
+                          className="text-muted-foreground"
+                          aria-label="Not used by this module"
+                        >
+                          –
+                        </span>
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

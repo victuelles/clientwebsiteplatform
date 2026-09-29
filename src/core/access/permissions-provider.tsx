@@ -23,6 +23,8 @@ type PermissionsValue = {
   /** True when the module is enabled and the user holds the permission (UI hiding only). */
   can: (scope: ScopeKey, action: PermissionAction) => boolean;
   moduleEnabled: (scope: ScopeKey) => boolean;
+  /** Enabled flag per module key. */
+  modules: Readonly<Record<string, boolean>>;
 };
 
 const PermissionsContext = createContext<PermissionsValue | null>(null);
@@ -45,6 +47,7 @@ export function PermissionsProvider({
       isSuperAdmin: value.role === "super_admin",
       can: (scope, action) => decide(facts, { scope, action }) === "allowed",
       moduleEnabled: (scope) => isModuleEnabled(facts, scope),
+      modules: value.modules,
     };
   }, [value]);
 

@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import type { LinkContext, LinkPage } from "@/core/links/resolve";
+import { getEnabledModules } from "@/core/modules/registry.server";
 import { MEDIA_ASSET_COLUMNS, type MediaAsset } from "@/core/media/types";
 import { mediaIdsIn } from "@/core/sections/media-ids";
 import type { SectionRecord } from "@/core/sections/types";
@@ -70,9 +71,10 @@ export const getPublishedPage = cache(
 /** Every page's slug and status (for resolving page links). Cached (tag "pages"). */
 export const getLinkContext = cache(async (): Promise<LinkContext> => {
   const supabase = createCachedPublicClient([PAGES_TAG]);
+  // Module state comes from the registry's cached read (tag "modules").
   const [pages, modules] = await Promise.all([
     supabase.from("pages").select("id, slug, is_home, status"),
-    supabase.from("modules").select("key, enabled"),
+    getEnabledModules(),
   ]);
   return {
     pages: Object.fromEntries(
@@ -81,7 +83,7 @@ export const getLinkContext = cache(async (): Promise<LinkContext> => {
         { slug: p.slug, isHome: p.is_home, published: p.status === "published" } satisfies LinkPage,
       ]),
     ),
-    modules: Object.fromEntries((modules.data ?? []).map((m) => [m.key, m.enabled])),
+    modules,
   };
 });
 

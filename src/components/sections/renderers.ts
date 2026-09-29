@@ -1,5 +1,7 @@
 import "server-only";
 
+import { moduleSectionRenderers } from "@/core/modules/registry.server";
+
 import { CardGridSection } from "./card-grid";
 import { ContactFormSection } from "./contact-form";
 import type { SectionRenderContext } from "./context";
@@ -33,4 +35,6 @@ export const SECTION_RENDERERS: Record<string, SectionRenderer> = {
   module_feed: ModuleFeedSection as SectionRenderer,
   rich_text: RichTextSection as SectionRenderer,
   contact_form: ContactFormSection as SectionRenderer,
+  // Section types contributed by modules (module.server.ts sectionRenderers).
+  ...(moduleSectionRenderers() as Record<string, SectionRenderer>),
 };

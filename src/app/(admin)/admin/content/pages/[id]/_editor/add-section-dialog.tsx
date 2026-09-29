@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { isSectionAvailable } from "@/core/sections/availability";
 import { SECTION_DEFINITIONS } from "@/core/sections/registry";
 
 import { SectionThumbnail } from "./thumbnails";
@@ -18,12 +19,18 @@ export function AddSectionDialog({
   onOpenChange,
   onAdd,
   afterLabel,
+  modules,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdd: (type: string) => void;
   afterLabel: string | null;
+  /** Module on/off state: types whose module is off are not offered. */
+  modules: Record<string, boolean>;
 }) {
+  const available = SECTION_DEFINITIONS.filter((definition) =>
+    isSectionAvailable(definition, modules),
+  );
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[88vh] flex-col sm:max-w-3xl">
@@ -39,7 +46,7 @@ export function AddSectionDialog({
           className="grid flex-1 gap-3 overflow-y-auto p-0.5 sm:grid-cols-2 lg:grid-cols-3"
           aria-label="Section types"
         >
-          {SECTION_DEFINITIONS.map((definition) => (
+          {available.map((definition) => (
             <li key={definition.key}>
               <button
                 type="button"

@@ -9,12 +9,15 @@ import { richTextSection } from "./definitions/rich-text";
 import { statsSection } from "./definitions/stats";
 import { testimonialSection } from "./definitions/testimonial";
 import { valueStripSection } from "./definitions/value-strip";
+import { moduleSectionDefinitions } from "@/core/modules/registry";
+
 import type { SectionBackground, SectionPadding } from "./common";
 import type { SectionDefinition } from "./types";
 
-// Every section type, in the order shown in the "Add section" dialog. To add a type, follow the
-// checklist in CLAUDE.md ("How to add a section type").
-export const SECTION_DEFINITIONS: SectionDefinition[] = [
+// Every section type, in the order shown in the "Add section" dialog: the core types, then the
+// types modules contribute through their manifests. To add a type, follow the checklist in
+// CLAUDE.md ("Adding a section type").
+const CORE_SECTION_DEFINITIONS: SectionDefinition[] = [
   heroSection,
   imageWithTextSection,
   valueStripSection,
@@ -28,7 +31,15 @@ export const SECTION_DEFINITIONS: SectionDefinition[] = [
   contactFormSection,
 ] as SectionDefinition[];
 
+export const SECTION_DEFINITIONS: SectionDefinition[] = [
+  ...CORE_SECTION_DEFINITIONS,
+  ...moduleSectionDefinitions(),
+];
+
 const BY_KEY = new Map(SECTION_DEFINITIONS.map((definition) => [definition.key, definition]));
+if (BY_KEY.size !== SECTION_DEFINITIONS.length) {
+  throw new Error("Two section types share a key (check the modules' sectionTypes).");
+}
 
 export function getSectionDefinition(key: string): SectionDefinition | undefined {
   return BY_KEY.get(key);

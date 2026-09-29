@@ -7,6 +7,7 @@ import { ActionError, protectedAction, toActionError } from "@/core/access/prote
 import { mediaIdsIn } from "@/core/sections/media-ids";
 import { MEDIA_TAG, MENUS_TAG, PAGES_TAG, pageTag } from "@/core/pages/tags";
 import { slugProblem } from "@/core/pages/reserved-slugs";
+import { isSectionAvailable } from "@/core/sections/availability";
 import { commonSettingsSchema } from "@/core/sections/common";
 import {
   defaultPropsFor,
@@ -311,8 +312,11 @@ export const addSection = protectedAction({
   scope: "content",
   action: "edit",
   schema: z.object({ pageId, type: z.string(), afterSectionId: sectionId.nullable() }),
-  handler: async ({ input, supabase }) => {
-    if (!getSectionDefinition(input.type)) throw new ActionError("Unknown section type.");
+  handler: async ({ input, context, supabase }) => {
+    const definition = getSectionDefinition(input.type);
+    if (!definition) throw new ActionError("Unknown section type.");
+    if (!isSectionAvailable(definition, context.modules))
+      throw new ActionError("That section's module is turned off.");
     const settings = defaultSettingsFor(input.type);
     const section = await insertSectionsAfter(supabase, input.pageId, input.afterSectionId, {
       type: input.type,

@@ -602,6 +602,7 @@ export function PageEditor({
         onOpenChange={setAddOpen}
         onAdd={add}
         afterLabel={selected ? (getSectionDefinition(selected.type)?.label ?? null) : null}
+        modules={modules}
       />
       <PageSettingsDialog
         open={settingsOpen}
