@@ -23,7 +23,8 @@
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local --schema public > src/core/supabase/database.types.ts && prettier --write --log-level warn src/core/supabase/database.types.ts",
     "db:types:linked": "supabase gen types typescript --linked --schema public > src/core/supabase/database.types.ts && prettier --write --log-level warn src/core/supabase/database.types.ts",
-    "seed:media": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/seed-media.mjs"
+    "seed:media": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/seed-media.mjs",
+    "module:new": "node scripts/module-new.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

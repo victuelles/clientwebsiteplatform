@@ -516,6 +516,7 @@ pnpm db:push                               # apply migrations to the linked proj
 pnpm db:types                              # regenerate types from the local DB
 pnpm db:types:linked                       # regenerate types from the linked project
 pnpm seed:media                            # upload seed/media and fill the seeded image fields
+pnpm module:new <key> [--dry-run]          # scaffold a registered module (never overwrites)
 ```
 
 After changing `supabase/config.toml` or `supabase/templates/`, restart local Supabase
