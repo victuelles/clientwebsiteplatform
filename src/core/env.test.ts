@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { EnvValidationError, getIntegrationStatus, parseEnv } from "./env";
+import { EnvValidationError, getIntegrationDetails, getIntegrationStatus, parseEnv } from "./env";
 
 const validEnv = {
   NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
@@ -49,5 +49,18 @@ describe("getIntegrationStatus", () => {
       MUX_TOKEN_ID: "id",
     });
     expect(status).toEqual({ stripe: false, resend: true, mux: false });
+  });
+});
+
+describe("getIntegrationDetails", () => {
+  it("lists the names of missing variables, never their values", () => {
+    const details = getIntegrationDetails({
+      RESEND_API_KEY: "re_secret_value",
+      MUX_TOKEN_ID: "id",
+    });
+    expect(details.resend).toEqual({ configured: false, missing: ["RESEND_FROM_EMAIL"] });
+    expect(details.mux.missing).toEqual(["MUX_TOKEN_SECRET", "MUX_WEBHOOK_SECRET"]);
+    expect(details.stripe.missing).toHaveLength(3);
+    expect(JSON.stringify(details)).not.toContain("re_secret_value");
   });
 });

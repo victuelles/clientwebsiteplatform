@@ -154,16 +154,37 @@ export type IntegrationStatus = {
   mux: boolean;
 };
 
+/** Env var names each integration needs. */
+export const INTEGRATION_ENV_VARS = {
+  stripe: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"],
+  resend: ["RESEND_API_KEY", "RESEND_FROM_EMAIL"],
+  mux: ["MUX_TOKEN_ID", "MUX_TOKEN_SECRET", "MUX_WEBHOOK_SECRET"],
+} as const satisfies Record<keyof IntegrationStatus, readonly (keyof Env)[]>;
+
+export type IntegrationDetails = Record<
+  keyof IntegrationStatus,
+  { configured: boolean; missing: string[] }
+>;
+
+/** Which integrations are fully configured, and the NAMES (never values) of missing vars. Server only. */
+export function getIntegrationDetails(source: Partial<Env> = env): IntegrationDetails {
+  const details = (names: readonly (keyof Env)[]) => {
+    const missing = names.filter((name) => !source[name]);
+    return { configured: missing.length === 0, missing: [...missing] };
+  };
+  return {
+    stripe: details(INTEGRATION_ENV_VARS.stripe),
+    resend: details(INTEGRATION_ENV_VARS.resend),
+    mux: details(INTEGRATION_ENV_VARS.mux),
+  };
+}
+
 /** Returns which integrations have all of their keys configured. Server only. */
 export function getIntegrationStatus(source: Partial<Env> = env): IntegrationStatus {
-  const all = (...values: unknown[]) => values.every((value) => Boolean(value));
+  const details = getIntegrationDetails(source);
   return {
-    stripe: all(
-      source.STRIPE_SECRET_KEY,
-      source.STRIPE_WEBHOOK_SECRET,
-      source.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
-    ),
-    resend: all(source.RESEND_API_KEY, source.RESEND_FROM_EMAIL),
-    mux: all(source.MUX_TOKEN_ID, source.MUX_TOKEN_SECRET, source.MUX_WEBHOOK_SECRET),
+    stripe: details.stripe.configured,
+    resend: details.resend.configured,
+    mux: details.mux.configured,
   };
 }

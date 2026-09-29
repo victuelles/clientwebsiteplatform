@@ -11,7 +11,11 @@ import { Logo } from "./logo";
 import { SocialIcon } from "./social-icon";
 
 const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
-const platformLabel = (key: string) => SOCIAL_PLATFORMS.find((p) => p.key === key)?.label ?? key;
+function platformLabel(key: string) {
+  if (key === "email") return "Email us";
+  if (key === "phone") return "Call us";
+  return SOCIAL_PLATFORMS.find((p) => p.key === key)?.label ?? key;
+}
 
 /** Navy footer: brand column, link columns, contact column, and the legal row. */
 export function SiteFooter({ settings }: { settings: SiteSettings }) {
