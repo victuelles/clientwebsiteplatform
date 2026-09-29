@@ -212,6 +212,21 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      admin_list_staff: {
+        Args: { target_user?: string };
+        Returns: {
+          avatar_url: string;
+          created_at: string;
+          email: string;
+          email_confirmed_at: string;
+          full_name: string;
+          id: string;
+          invited_at: string;
+          is_active: boolean;
+          last_sign_in_at: string;
+          permission_count: number;
+        }[];
+      };
       bootstrap_super_admin: {
         Args: { expected_email: string; target_user: string };
         Returns: boolean;
@@ -223,6 +238,13 @@ export type Database = {
       current_app_role: {
         Args: Record<PropertyKey, never>;
         Returns: Database["public"]["Enums"]["app_role"];
+      };
+      get_my_permissions: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          action: Database["public"]["Enums"]["permission_action"];
+          scope: string;
+        }[];
       };
       has_permission: {
         Args: { act: Database["public"]["Enums"]["permission_action"]; scope_key: string };
@@ -242,6 +264,10 @@ export type Database = {
       };
       module_enabled: { Args: { scope_key: string }; Returns: boolean };
       set_module_enabled: { Args: { enabled: boolean; module_key: string }; Returns: undefined };
+      set_staff_permissions: {
+        Args: { permissions: Json; target_user: string };
+        Returns: undefined;
+      };
       set_user_active: { Args: { active: boolean; target_user: string }; Returns: undefined };
       set_user_role: {
         Args: { new_role: Database["public"]["Enums"]["app_role"]; target_user: string };
