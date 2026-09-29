@@ -22,7 +22,7 @@ export function AccountForm({ fullName }: { fullName: string }) {
     const result = await updateProfile(values);
     if (result.ok) {
       form.reset(values);
-      toast.success(result.message ?? "Saved.");
+      toast.success(result.data.message);
     } else {
       form.setError("root", { message: result.error });
     }

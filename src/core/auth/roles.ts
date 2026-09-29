@@ -3,7 +3,7 @@ import type { Database } from "@/core/supabase/database.types";
 export type AppRole = Database["public"]["Enums"]["app_role"];
 export type PermissionAction = Database["public"]["Enums"]["permission_action"];
 
-export function isStaffOrAdminRole(role: AppRole | null | undefined): boolean {
+function isStaffOrAdminRole(role: AppRole | null | undefined): boolean {
   return role === "super_admin" || role === "staff";
 }
 

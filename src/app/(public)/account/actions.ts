@@ -2,28 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 
-import { profileSchema, type ActionResult } from "@/core/auth/schemas";
-import { getCurrentProfile } from "@/core/auth/session";
-import { createClient } from "@/core/supabase/server";
+import { ActionError, protectedAction } from "@/core/access/protected-action";
+import { profileSchema } from "@/core/auth/schemas";
 
-export async function updateProfile(input: unknown): Promise<ActionResult> {
-  const parsed = profileSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the form and try again." };
-  }
+export const updateProfile = protectedAction({
+  role: "signed_in",
+  schema: profileSchema,
+  handler: async ({ input, context, supabase }) => {
+    // RLS and column grants limit this to the user's own full_name/avatar_url.
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: input.fullName })
+      .eq("id", context.profile!.id);
+    if (error) throw new ActionError("Could not save your changes. Please try again.");
 
-  const profile = await getCurrentProfile();
-  if (!profile) return { ok: false, error: "Please sign in again." };
-
-  // RLS and column grants limit this to the user's own full_name/avatar_url.
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("profiles")
-    .update({ full_name: parsed.data.fullName })
-    .eq("id", profile.id);
-
-  if (error) return { ok: false, error: "Could not save your changes. Please try again." };
-
-  revalidatePath("/", "layout");
-  return { ok: true, message: "Your profile was updated." };
-}
+    revalidatePath("/", "layout");
+    return { message: "Your profile was updated." };
+  },
+});

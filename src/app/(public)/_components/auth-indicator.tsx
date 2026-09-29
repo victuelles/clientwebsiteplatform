@@ -1,15 +1,15 @@
 import Link from "next/link";
 
 import { signOut } from "@/core/auth/actions";
-import { isStaffOrAdminRole } from "@/core/auth/roles";
-import { getCurrentProfile } from "@/core/auth/session";
+import { getAccessContext } from "@/core/access/context";
 
 const linkClass =
   "text-xs leading-none font-semibold tracking-widest uppercase transition-colors hover:text-accent";
 
 /** Signed-in / signed-out indicator for the public placeholder header. */
 export async function AuthIndicator() {
-  const profile = await getCurrentProfile();
+  const context = await getAccessContext();
+  const profile = context.profile?.is_active ? context.profile : null;
 
   if (!profile) {
     return (
@@ -21,7 +21,7 @@ export async function AuthIndicator() {
 
   return (
     <nav aria-label="Account" className="flex items-center gap-5">
-      {isStaffOrAdminRole(profile.role) && (
+      {context.check({ role: "staff_or_admin" }) === "allowed" && (
         <Link href="/admin" className={linkClass}>
           Admin
         </Link>

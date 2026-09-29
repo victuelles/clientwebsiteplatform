@@ -1,11 +1,11 @@
-import { requireStaffOrAdmin } from "@/core/auth/guards";
+import { requireStaffOrAdmin } from "@/core/access/guard";
 import { ROLE_LABELS } from "@/core/auth/roles";
 
 import { HealthStatus } from "./_components/health-status";
 
 export default async function AdminDashboardPage() {
   // Also checked here: layouts are not re-run on every client-side navigation.
-  const profile = await requireStaffOrAdmin("/admin");
+  const { profile } = await requireStaffOrAdmin();
 
   return (
     <main className="space-y-2">

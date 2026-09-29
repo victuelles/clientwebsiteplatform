@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { Eyebrow } from "@/components/shared/eyebrow";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireUser } from "@/core/auth/guards";
+import { requireUser } from "@/core/access/guard";
 import { ROLE_LABELS } from "@/core/auth/roles";
 
 import { AccountForm } from "./account-form";
@@ -10,7 +10,7 @@ import { AccountForm } from "./account-form";
 export const metadata: Metadata = { title: "Your account" };
 
 export default async function AccountPage() {
-  const profile = await requireUser("/account");
+  const { profile } = await requireUser();
 
   return (
     <main className="flex flex-1 justify-center bg-muted px-4 py-12 sm:py-20">

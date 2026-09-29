@@ -53,5 +53,5 @@ export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
 export type ProfileValues = z.infer<typeof profileSchema>;
 
-/** Result returned by form server actions that do not redirect. */
-export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
+/** Result of the public auth form actions (sign-in, sign-up, password reset). */
+export type AuthFormResult = { ok: true; message?: string } | { ok: false; error: string };

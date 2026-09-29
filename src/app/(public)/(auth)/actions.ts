@@ -3,6 +3,7 @@
 import type { AuthError } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
+import { ActionError, protectedAction } from "@/core/access/protected-action";
 import { AUTH_MESSAGES } from "@/core/auth/messages";
 import { homePathForRole } from "@/core/auth/roles";
 import {
@@ -11,9 +12,8 @@ import {
   resetPasswordSchema,
   signInSchema,
   signUpSchema,
-  type ActionResult,
+  type AuthFormResult,
 } from "@/core/auth/schemas";
-import { getCurrentProfile } from "@/core/auth/session";
 import { finishSignIn } from "@/core/auth/sign-in";
 import { env } from "@/core/env";
 import { createClient } from "@/core/supabase/server";
@@ -33,7 +33,7 @@ function authUrl(path: string) {
 export async function signInWithPassword(
   input: unknown,
   next?: string | null,
-): Promise<ActionResult> {
+): Promise<AuthFormResult> {
   const parsed = signInSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: AUTH_MESSAGES.invalidCredentials };
 
@@ -46,7 +46,7 @@ export async function signInWithPassword(
   redirect(await finishSignIn(supabase, data.user.id, next));
 }
 
-export async function sendMagicLink(input: unknown): Promise<ActionResult> {
+export async function sendMagicLink(input: unknown): Promise<AuthFormResult> {
   const parsed = magicLinkSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Enter a valid email address." };
 
@@ -61,7 +61,7 @@ export async function sendMagicLink(input: unknown): Promise<ActionResult> {
   return { ok: true, message: AUTH_MESSAGES.magicLinkSent };
 }
 
-export async function signUp(input: unknown): Promise<ActionResult> {
+export async function signUp(input: unknown): Promise<AuthFormResult> {
   const parsed = signUpSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? AUTH_MESSAGES.unexpected };
@@ -95,7 +95,7 @@ export async function signUp(input: unknown): Promise<ActionResult> {
   return { ok: true, message: AUTH_MESSAGES.signUpSent };
 }
 
-export async function requestPasswordReset(input: unknown): Promise<ActionResult> {
+export async function requestPasswordReset(input: unknown): Promise<AuthFormResult> {
   const parsed = forgotPasswordSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Enter a valid email address." };
 
@@ -108,25 +108,18 @@ export async function requestPasswordReset(input: unknown): Promise<ActionResult
   return { ok: true, message: AUTH_MESSAGES.resetSent };
 }
 
-export async function updatePassword(input: unknown): Promise<ActionResult> {
-  const parsed = resetPasswordSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? AUTH_MESSAGES.unexpected };
-  }
-
-  const profile = await getCurrentProfile();
-  if (!profile) {
-    return { ok: false, error: "Your reset link has expired. Please request a new one." };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
-  if (error) {
-    if (error.code === "weak_password" || error.code === "same_password") {
-      return { ok: false, error: error.message };
+/** Signed-in users only (reached from the reset or invite email, which signs them in). */
+export const updatePassword = protectedAction({
+  role: "signed_in",
+  schema: resetPasswordSchema,
+  handler: async ({ input, context, supabase }) => {
+    const { error } = await supabase.auth.updateUser({ password: input.password });
+    if (error) {
+      if (error.code === "weak_password" || error.code === "same_password") {
+        throw new ActionError(error.message);
+      }
+      throw new ActionError(genericError(error));
     }
-    return { ok: false, error: genericError(error) };
-  }
-
-  redirect(homePathForRole(profile.role));
-}
+    redirect(homePathForRole(context.profile?.role));
+  },
+});

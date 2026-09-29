@@ -5,14 +5,26 @@ import { env } from "@/core/env";
 
 import type { Database } from "./database.types";
 
+/** Forwards the request (with any refreshed cookies) plus x-pathname for the server guards. */
+function next(request: NextRequest) {
+  const headers = new Headers(request.headers);
+  headers.set("x-pathname", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+  return NextResponse.next({ request: { headers } });
+}
+
+/** True if the request carries a Supabase auth cookie (possibly chunked: .0, .1, ...). */
+export function hasSessionCookie(request: NextRequest): boolean {
+  return request.cookies
+    .getAll()
+    .some(({ name }) => name.startsWith("sb-") && /-auth-token(\.\d+)?$/.test(name));
+}
+
 /**
  * Refreshes the Supabase auth session on every request and forwards updated cookies to both the
  * request (for Server Components) and the response (for the browser).
- *
- * Only refreshes the session; route protection is added by the access guard in Phase 2.
  */
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  let response = next(request);
 
   const supabase = createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -24,7 +36,7 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet, headers) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          response = next(request);
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );

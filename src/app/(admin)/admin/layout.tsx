@@ -1,11 +1,11 @@
 import Link from "next/link";
 
 import { signOut } from "@/core/auth/actions";
-import { requireStaffOrAdmin } from "@/core/auth/guards";
+import { requireStaffOrAdmin } from "@/core/access/guard";
 
 // Placeholder admin layout. Phase 2 replaces it with the admin shell and requireAccess().
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
-  const profile = await requireStaffOrAdmin("/admin");
+  const { profile } = await requireStaffOrAdmin();
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
