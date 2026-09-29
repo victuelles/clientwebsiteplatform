@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 
 import { Eyebrow } from "@/components/shared/eyebrow";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/core/access/guard";
+import { signOut } from "@/core/auth/actions";
 import { ROLE_LABELS } from "@/core/auth/roles";
 
 import { AccountForm } from "./account-form";
@@ -40,6 +42,11 @@ export default async function AccountPage() {
               </div>
             </dl>
             <AccountForm fullName={profile.full_name ?? ""} />
+            <form action={signOut} className="border-t pt-6">
+              <Button type="submit" variant="outline">
+                Sign out
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>

@@ -1,11 +1,16 @@
-import { SiteHeader } from "./_components/site-header";
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
+import { TopBar } from "@/components/site/top-bar";
+import { getSiteSettings } from "@/core/settings/get-settings";
 
-// Placeholder public layout. The real header/footer come in Phase 3/4.
-export default function PublicLayout({ children }: LayoutProps<"/">) {
+export default async function PublicLayout({ children }: LayoutProps<"/">) {
+  const settings = await getSiteSettings();
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <SiteHeader />
-      {children}
+      <TopBar settings={settings} />
+      <SiteHeader settings={settings} />
+      <div className="flex flex-1 flex-col">{children}</div>
+      <SiteFooter settings={settings} />
     </div>
   );
 }

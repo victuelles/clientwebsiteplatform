@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { MEDIA_ASSET_COLUMNS, type MediaAsset } from "@/core/media/types";
 import { siteConfig } from "@/core/site";
 import { createCachedPublicClient } from "@/core/supabase/public";
 
@@ -21,10 +22,10 @@ export type SiteSettings = {
   address: string | null;
   mapUrl: string | null;
   socialLinks: SocialLink[];
-  logoMediaId: string | null;
-  logoOnDarkMediaId: string | null;
-  faviconMediaId: string | null;
-  ogImageMediaId: string | null;
+  logo: MediaAsset | null;
+  logoOnDark: MediaAsset | null;
+  favicon: MediaAsset | null;
+  ogImage: MediaAsset | null;
   theme: Theme;
   showTopBar: boolean;
   headerCtaLabel: string | null;
@@ -49,10 +50,10 @@ const FALLBACK: SiteSettings = {
   address: null,
   mapUrl: null,
   socialLinks: [],
-  logoMediaId: null,
-  logoOnDarkMediaId: null,
-  faviconMediaId: null,
-  ogImageMediaId: null,
+  logo: null,
+  logoOnDark: null,
+  favicon: null,
+  ogImage: null,
   theme: DEFAULT_THEME,
   showTopBar: true,
   headerCtaLabel: null,
@@ -72,7 +73,17 @@ const FALLBACK: SiteSettings = {
  */
 export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
   const supabase = createCachedPublicClient([SITE_SETTINGS_TAG]);
-  const { data, error } = await supabase.from("site_settings").select("*").maybeSingle();
+  // Brand assets are embedded through their foreign keys (public columns only; see media).
+  const { data, error } = await supabase
+    .from("site_settings")
+    .select(
+      `*,
+      logo:media_assets!site_settings_logo_media_fk(${MEDIA_ASSET_COLUMNS}),
+      logoOnDark:media_assets!site_settings_logo_on_dark_media_fk(${MEDIA_ASSET_COLUMNS}),
+      favicon:media_assets!site_settings_favicon_media_fk(${MEDIA_ASSET_COLUMNS}),
+      ogImage:media_assets!site_settings_og_image_media_fk(${MEDIA_ASSET_COLUMNS})`,
+    )
+    .maybeSingle();
   if (error || !data) {
     if (error) console.error(`Could not load site settings: ${error.message}`);
     return FALLBACK;
@@ -89,10 +100,10 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
     address: data.address,
     mapUrl: data.map_url,
     socialLinks: parseSocialLinks(data.social_links),
-    logoMediaId: data.logo_media_id,
-    logoOnDarkMediaId: data.logo_on_dark_media_id,
-    faviconMediaId: data.favicon_media_id,
-    ogImageMediaId: data.og_image_media_id,
+    logo: data.logo,
+    logoOnDark: data.logoOnDark,
+    favicon: data.favicon,
+    ogImage: data.ogImage,
     theme: parseTheme(data.theme),
     showTopBar: data.show_top_bar,
     headerCtaLabel: data.header_cta_label,
