@@ -64,7 +64,7 @@ export function SectionHeading({
   return (
     <Tag
       className={cn(
-        "font-heading text-[34px] leading-[1.12] font-normal tracking-tight text-balance lg:text-[46px]",
+        "font-heading text-[34px] leading-[1.12] font-normal tracking-tight lg:text-[46px]",
         className,
       )}
     >
@@ -107,6 +107,7 @@ export function SectionImage({
   imgClassName,
   alt,
   priority,
+  quietPlaceholder,
 }: {
   value: MediaValue | undefined;
   ctx: SectionRenderContext;
@@ -115,6 +116,8 @@ export function SectionImage({
   imgClassName?: string;
   alt?: string;
   priority?: boolean;
+  /** Hide the placeholder's image icon (e.g. behind hero text). */
+  quietPlaceholder?: boolean;
 }) {
   const asset = value ? ctx.media[value.mediaId] : undefined;
   return (
@@ -133,7 +136,7 @@ export function SectionImage({
           className="flex h-full min-h-24 w-full items-center justify-center bg-[color-mix(in_oklch,var(--muted),var(--foreground)_6%)] text-muted-foreground"
           data-testid="image-placeholder"
         >
-          <ImageIcon aria-hidden className="size-8 opacity-60" />
+          {!quietPlaceholder && <ImageIcon aria-hidden className="size-8 opacity-60" />}
           <span className="sr-only">{alt ?? "Image"}</span>
         </div>
       )}

@@ -18,6 +18,7 @@ export type SectionEditorContextValue = {
   media: Record<string, MediaAsset>;
   registerMedia: (asset: MediaAsset) => void;
   modules: Record<string, boolean>;
+  feedSources: { value: string; label: string }[];
 };
 
 const Ctx = createContext<SectionEditorContextValue | null>(null);

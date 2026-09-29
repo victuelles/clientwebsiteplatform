@@ -13,8 +13,15 @@ export type FieldDef =
   | (FieldBase & { type: "richtext" })
   | (FieldBase & { type: "media"; accept?: "image" | "any" })
   | (FieldBase & { type: "link"; optional?: boolean })
+  /** A button or text link: { label, link }. */
+  | (FieldBase & { type: "action" })
   | (FieldBase & { type: "icon"; optional?: boolean })
-  | (FieldBase & { type: "select"; options: { value: string; label: string }[] })
+  | (FieldBase & {
+      type: "select";
+      options: { value: string; label: string }[];
+      /** Options supplied by the editor at runtime instead (e.g. feed providers). */
+      dynamicOptions?: "feed-sources";
+    })
   | (FieldBase & { type: "toggle" })
   | (FieldBase & { type: "number"; min?: number; max?: number; step?: number })
   | (FieldBase & {

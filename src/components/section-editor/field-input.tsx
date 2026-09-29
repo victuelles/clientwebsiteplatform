@@ -37,7 +37,7 @@ export function FieldInput({
   errors: FieldErrors;
   idPrefix: string;
 }) {
-  const { readOnly, media, registerMedia } = useSectionEditor();
+  const { readOnly, media, registerMedia, feedSources } = useSectionEditor();
   const id = `${idPrefix}${field.name}`;
   const error = errors[""];
   const invalid = Boolean(error);
@@ -113,11 +113,17 @@ export function FieldInput({
           />
         </div>
       );
-    case "select":
+    case "select": {
+      const options = field.dynamicOptions === "feed-sources" ? feedSources : field.options;
+      const current = (value as string) ?? options[0]?.value;
+      const items =
+        current && !options.some((o) => o.value === current)
+          ? [...options, { value: current, label: `${current} (not available yet)` }]
+          : options;
       control = (
         <Select
-          items={field.options}
-          value={(value as string) ?? field.options[0]?.value}
+          items={items}
+          value={current}
           onValueChange={(v) => onChange(v)}
           disabled={readOnly}
         >
@@ -129,7 +135,7 @@ export function FieldInput({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {field.options.map((option) => (
+            {items.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>
@@ -138,6 +144,7 @@ export function FieldInput({
         </Select>
       );
       break;
+    }
     case "media": {
       const mediaValue = value as MediaValue | undefined;
       const asset = mediaValue ? (media[mediaValue.mediaId] ?? null) : null;
@@ -156,6 +163,38 @@ export function FieldInput({
             onChange(picked ? { mediaId: picked.id } : null);
           }}
         />
+      );
+      break;
+    }
+    case "action": {
+      const current = (value as { label?: string; link?: Link | null } | undefined) ?? {
+        label: "",
+        link: null,
+      };
+      control = (
+        <div className="space-y-2 rounded-lg border p-2.5">
+          <Input
+            id={id}
+            aria-label={`${field.label} text`}
+            value={current.label ?? ""}
+            onChange={(e) => onChange({ ...current, label: e.target.value })}
+            placeholder="Button text"
+            disabled={readOnly}
+            maxLength={60}
+            className="h-9"
+            aria-invalid={Boolean(errors["label"])}
+          />
+          <LinkField
+            id={`${id}-link`}
+            value={current.link ?? null}
+            onChange={(link) => onChange({ ...current, link })}
+            invalid={Boolean(errors["link"])}
+          />
+          <p className="text-xs text-muted-foreground">Leave the text empty to hide it.</p>
+          {(errors["label"] || errors["link"]) && (
+            <p className="text-xs text-destructive">{errors["label"] ?? errors["link"]}</p>
+          )}
+        </div>
       );
       break;
     }
