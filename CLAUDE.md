@@ -311,6 +311,26 @@ create policy "Staff with shop:edit update orders"
   with check ((select public.can('shop', 'edit')));
 ```
 
+### Module table policy pattern
+
+Every module table follows `supabase/templates/module-table.sql` (tested for every role with the
+module on and off in `supabase/tests/database/08_module_policy_template.test.sql`):
+
+| Policy                     | Rule                                                                          |
+| -------------------------- | ----------------------------------------------------------------------------- |
+| Public read                | `status = 'published' and (select module_enabled('<key>'))`                   |
+| Owner read                 | `user_id = (select auth.uid()) and (select module_enabled('<key>'))`          |
+| Staff read                 | `(select can('<key>', 'view'))`                                               |
+| Super admin read (off too) | `(select is_super_admin())`, select only                                      |
+| Owner writes               | `module_enabled('<key>')` + `user_id = auth.uid()` + status rules (drafts)    |
+| Staff writes               | `can('<key>', 'create' / 'edit' / 'delete' / 'publish')` (includes module on) |
+
+Nobody writes to a disabled module, including the super admin. Index `user_id` and every column a
+policy uses. **Webhooks and server tasks** use the admin client, which bypasses RLS: call
+`requireModuleEnabled(key)` (`@/core/modules/guard`) before starting anything new. They may still
+record events for records that already exist (a payment for an order placed before the module was
+turned off) but never start new operations while it is off.
+
 Exceptions: the public auth actions (sign-in, sign-up, magic link, password reset request) are
 the only unguarded server actions; webhooks (later phases) verify signatures instead and use the
 admin client. Adding a scope means a migration **and** `src/core/access/scopes.ts` (`pnpm test:int`
