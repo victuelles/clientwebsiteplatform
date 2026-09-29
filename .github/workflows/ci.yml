@@ -57,6 +57,9 @@ jobs:
       - name: pgTAP database tests
         run: pnpm test:db
 
+      - name: Integration tests (code vs database)
+        run: pnpm test:int
+
       - name: Generated types are up to date
         run: |
           pnpm db:types

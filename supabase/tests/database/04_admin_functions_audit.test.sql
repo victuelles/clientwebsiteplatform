@@ -31,7 +31,8 @@ select throws_ok($$ insert into public.audit_log (action) values ('x') $$, '4250
 select throws_ok($$ update public.audit_log set action = 'y' $$, '42501', null, 'the super admin cannot update audit_log');
 select throws_ok($$ delete from public.audit_log $$, '42501', null, 'the super admin cannot delete audit_log');
 select is(
-  (select actor_id from public.audit_log where action = 'user.did_something'),
+  (select actor_id from public.audit_log where action = 'user.did_something'
+     and actor_id = 'd0000000-0000-4000-8000-000000000003'),
   'd0000000-0000-4000-8000-000000000003'::uuid,
   'the super admin reads the audit log; log_audit records the caller as actor'
 );
@@ -137,14 +138,16 @@ select is(
   false, 'the user is inactive'
 );
 select is(
-  (select count(*)::int from public.audit_log where action = 'user.deactivated'),
+  (select count(*)::int from public.audit_log where action = 'user.deactivated'
+     and target_id = 'd0000000-0000-4000-8000-000000000003'),
   1, 'the deactivation was audited'
 );
 
 select lives_ok($$ select public.set_module_enabled('shop', true) $$, 'the super admin can enable a module');
 select is((select enabled from public.modules where key = 'shop'), true, 'the module is enabled');
 select is(
-  (select count(*)::int from public.audit_log where action = 'module.enabled' and scope = 'shop'),
+  (select count(*)::int from public.audit_log where action = 'module.enabled' and scope = 'shop'
+     and actor_id = 'd0000000-0000-4000-8000-000000000001'),
   1, 'enabling the module was audited'
 );
 select throws_ok(

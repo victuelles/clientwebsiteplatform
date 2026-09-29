@@ -140,11 +140,11 @@ select is(
   'new grants record the super admin as granted_by'
 );
 select is(
-  (select count(*)::int from public.audit_log where action = 'staff.permissions_updated'),
+  (select count(*)::int from public.audit_log where action = 'staff.permissions_updated' and target_id = 'e0000000-0000-4000-8000-000000000002'),
   1, 'exactly one audit entry was written'
 );
 select is(
-  (select metadata from public.audit_log where action = 'staff.permissions_updated'),
+  (select metadata from public.audit_log where action = 'staff.permissions_updated' and target_id = 'e0000000-0000-4000-8000-000000000002'),
   '{"added": [{"scope": "blog", "action": "publish"}, {"scope": "content", "action": "edit"}, {"scope": "media", "action": "view"}],
     "removed": [{"scope": "content", "action": "view"}]}'::jsonb,
   'the audit entry lists added and removed grants'
@@ -156,7 +156,7 @@ select lives_ok(
   'saving the same set again works'
 );
 select is(
-  (select count(*)::int from public.audit_log where action = 'staff.permissions_updated'),
+  (select count(*)::int from public.audit_log where action = 'staff.permissions_updated' and target_id = 'e0000000-0000-4000-8000-000000000002'),
   1, 'an unchanged set writes no audit entry'
 );
 
