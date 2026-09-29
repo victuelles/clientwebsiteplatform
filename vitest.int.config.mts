@@ -2,20 +2,18 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "vitest/config";
 
+// Integration tests against local Supabase (`pnpm db:start`). Run with `pnpm test:int`.
 export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
-      // "server-only" throws outside React Server Components; tests run in plain Node.
       "server-only": fileURLToPath(new URL("./src/test/server-only-stub.ts", import.meta.url)),
     },
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
-    // *.int.test.ts need local Supabase; they run with `pnpm test:int`.
-    exclude: ["src/**/*.int.test.ts", "node_modules/**"],
-    // Importing env.ts validates process.env at load time; tests call parseEnv() directly instead.
+    include: ["src/**/*.int.test.ts"],
+    testTimeout: 30_000,
     env: { SKIP_ENV_VALIDATION: "1" },
   },
 });
