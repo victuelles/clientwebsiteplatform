@@ -5,7 +5,7 @@ import { toClientAccessFacts } from "@/core/access/context";
 import { requireStaffOrAdmin } from "@/core/access/guard";
 import { PermissionsProvider } from "@/core/access/permissions-provider";
 import { ROLE_LABELS } from "@/core/auth/roles";
-import { getSiteSettings } from "@/core/settings/site-settings";
+import { getSiteSettings } from "@/core/settings/get-settings";
 
 import { AdminSidebar } from "./_shell/admin-sidebar";
 import { buildNav } from "./_shell/nav";

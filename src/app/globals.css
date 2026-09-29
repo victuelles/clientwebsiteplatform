@@ -18,15 +18,20 @@
 
 :root {
   /* --- Brand tokens (permanent names) ----------------------------------------------------- */
-  /* TODO(phase-3): values approximated from docs/design; make editable per client. */
+  /* Defaults (North / Co). The root layout overrides them per client from site_settings.theme
+     (src/core/settings/theme.ts), so these only apply if settings cannot be loaded. */
   --background: #ffffff;
   --foreground: #121729;
   --muted: #fafafa; /* light section background */
   --muted-foreground: #5f6471; /* secondary text */
   --navy: #0a102a; /* dark sections, header, footer */
   --navy-foreground: #ffffff;
+  --navy-hover: #171e3a;
+  --navy-active: #202844;
   --accent: #ed573d; /* coral-orange: primary CTAs and highlights */
   --accent-foreground: #ffffff;
+  --accent-hover: #d74229; /* derived in src/core/settings/theme.ts from the stored theme */
+  --accent-active: #c9341a;
   --border: #e9eaed;
   --radius: 0.125rem; /* the reference uses near-square corners */
 
@@ -61,8 +66,8 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-inter);
-  --font-heading: var(--font-inter);
+  --font-sans: var(--font-body, var(--font-inter));
+  --font-heading: var(--font-heading-family, var(--font-inter));
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -72,6 +77,10 @@
   --color-navy-foreground: var(--navy-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-active: var(--accent-active);
+  --color-navy-hover: var(--navy-hover);
+  --color-navy-active: var(--navy-active);
   --color-border: var(--border);
   --color-success: var(--success);
   --color-destructive: var(--destructive);
@@ -118,5 +127,13 @@
   }
   html {
     @apply font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading;
   }
 }
