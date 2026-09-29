@@ -11,7 +11,8 @@ Rules for contributors (human or AI) live in [CLAUDE.md](CLAUDE.md). Per-phase n
 
 - Node.js 24 LTS (see `.nvmrc`; run `nvm use`)
 - pnpm 9 (`corepack enable` picks up the version in `package.json`)
-- Docker Desktop, only for running Supabase locally (`pnpm db:start`)
+- A Docker runtime for local Supabase (`pnpm db:start`), database tests, and e2e tests. Docker
+  Desktop, OrbStack, or Colima (`brew install colima docker && colima start`) all work.
 
 The Supabase CLI is a dev dependency; run it with `pnpm exec supabase ...` or the `db:*` scripts.
 
@@ -61,7 +62,8 @@ http://127.0.0.1:54324. **Never run `seed.sql` against a client database.**
 | `pnpm format`                | Format everything with Prettier                                |
 | `pnpm format:check`          | Check formatting (CI)                                          |
 | `pnpm test`                  | Vitest unit tests                                              |
-| `pnpm test:e2e`              | Playwright smoke tests (needs a valid `.env.local`)            |
+| `pnpm test:e2e`              | Playwright e2e tests against local Supabase (`pnpm db:start`)  |
+| `pnpm test:db`               | pgTAP database tests in `supabase/tests`                       |
 | `pnpm db:start` / `db:stop`  | Start / stop local Supabase (Docker)                           |
 | `pnpm db:status`             | Show local Supabase URLs and keys                              |
 | `pnpm db:migration:new name` | Create `supabase/migrations/<timestamp>_name.sql`              |
@@ -82,9 +84,8 @@ the settings stored in their own database).
    visitors.
 2. From **Project Settings → API Keys**, copy the project URL, the publishable key, and a secret
    key.
-3. In **Authentication → URL Configuration**, set **Site URL** to the client's production URL and
-   add `https://<client-domain>/**` (and the Vercel preview URL pattern if you use previews) to the
-   redirect URLs.
+3. Work through the [Supabase Auth configuration per client](#supabase-auth-configuration-per-client)
+   checklist below.
 
 ### 2. Run migrations against the client's project
 
@@ -124,7 +125,7 @@ migrations, push them to every client project.
 | `NEXT_PUBLIC_SUPABASE_URL`             | Yes        | `https://<client-ref>.supabase.co`                    |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes        | `sb_publishable_...`                                  |
 | `SUPABASE_SECRET_KEY`                  | Yes        | `sb_secret_...` (mark as **Sensitive**)               |
-| `SUPER_ADMIN_EMAIL`                    | From Ph. 1 | The client's first admin email                        |
+| `SUPER_ADMIN_EMAIL`                    | Yes        | The client owner's email (becomes the super admin)    |
 | `STRIPE_SECRET_KEY`                    | Shop only  | `sk_live_...` or restricted `rk_live_...` (Sensitive) |
 | `STRIPE_WEBHOOK_SECRET`                | Shop only  | `whsec_...` (Sensitive)                               |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Shop only  | `pk_live_...`                                         |
@@ -157,5 +158,35 @@ A healthy deployment returns HTTP 200 with:
 `"status": "degraded"` with `"reachable": false` means the app is up but cannot reach Supabase:
 check `NEXT_PUBLIC_SUPABASE_URL`, the publishable key, and that the project is not paused. The
 same status line is shown on `/admin`.
+
+## Supabase Auth configuration per client
+
+Do this in each client's Supabase dashboard. Local development gets the same settings from
+`supabase/config.toml`.
+
+- [ ] **Site URL** (Authentication → URL Configuration): `https://<client-domain>`.
+- [ ] **Redirect URLs** (same page): add `https://<client-domain>/**` and, if you use Vercel
+      previews, `https://<vercel-project>-*-<vercel-team>.vercel.app/**`.
+- [ ] **Email confirmations on** (Authentication → Sign In / Providers → Email → "Confirm email").
+- [ ] **Password policy** (same page): minimum length **10**, and require lowercase, uppercase
+      letters, and digits. This must match the sign-up form's rules.
+- [ ] **Custom SMTP with Resend** (Authentication → Emails → SMTP Settings): host
+      `smtp.resend.com`, port `465`, username `resend`, password = a Resend API key, sender =
+      an address on the client's verified Resend domain (the same as `RESEND_FROM_EMAIL`). The
+      built-in Supabase mailer is rate-limited and not meant for production.
+- [ ] **Email templates** (Authentication → Emails → Templates): replace the link in each
+      template with the token_hash version from `supabase/templates/`:
+  - Confirm signup: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`
+  - Magic link: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`
+  - Reset password: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`
+  - Change email address:
+    `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change`
+
+  (Default templates still work through `/auth/callback`, but the token_hash links also work
+  when the email is opened in a different browser.)
+
+- [ ] **`SUPER_ADMIN_EMAIL`** set in the Vercel project to the owner's email. The owner then
+      signs up with that email and confirms it; their first sign-in makes them the super admin.
+      Every other sign-up becomes a regular user. Check `/admin` afterwards.
 
 # clientwebsiteplatform
