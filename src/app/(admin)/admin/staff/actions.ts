@@ -67,6 +67,7 @@ export const inviteStaff = protectedAction({
     if (lookupError) throw toActionError(lookupError);
 
     if (existing) {
+      // Inspects the invitee's account, not the caller's access (already checked above).
       if (existing.role === "super_admin")
         throw new ActionError("That is the super admin's account.");
       if (existing.role === "staff")

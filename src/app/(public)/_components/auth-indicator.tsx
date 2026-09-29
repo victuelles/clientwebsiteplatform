@@ -9,9 +9,7 @@ const linkClass =
 /** Signed-in / signed-out indicator for the public placeholder header. */
 export async function AuthIndicator() {
   const context = await getAccessContext();
-  const profile = context.profile?.is_active ? context.profile : null;
-
-  if (!profile) {
+  if (context.check({ role: "signed_in" }) !== "allowed") {
     return (
       <Link href="/sign-in" className={linkClass}>
         Sign in
