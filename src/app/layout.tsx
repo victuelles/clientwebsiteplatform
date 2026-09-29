@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();
   const image = settings.ogImage;
   return {
-    metadataBase: new URL(env.NEXT_PUBLIC_SITE_URL),
+    metadataBase: env.NEXT_PUBLIC_SITE_URL ? new URL(env.NEXT_PUBLIC_SITE_URL) : undefined,
     title: {
       default: settings.tagline ? `${settings.siteName} | ${settings.tagline}` : settings.siteName,
       template: settings.seoTitleTemplate ?? `%s | ${settings.siteName}`,

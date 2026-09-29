@@ -72,6 +72,16 @@ const FALLBACK: SiteSettings = {
  * indexing) if the database is unreachable, so the site still renders.
  */
 export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
+  try {
+    return await loadSiteSettings();
+  } catch (error) {
+    // e.g. CI builds without Supabase (SKIP_ENV_VALIDATION): render with safe defaults.
+    console.error(`Could not load site settings: ${(error as Error).message}`);
+    return FALLBACK;
+  }
+});
+
+async function loadSiteSettings(): Promise<SiteSettings> {
   const supabase = createCachedPublicClient([SITE_SETTINGS_TAG]);
   // Brand assets are embedded through their foreign keys (public columns only; see media).
   const { data, error } = await supabase
@@ -115,4 +125,4 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
     seoDescription: data.seo_description ?? data.description,
     allowIndexing: data.allow_indexing,
   };
-});
+}
