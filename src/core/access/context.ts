@@ -56,3 +56,12 @@ export const getAccessContext = cache(async (): Promise<AccessContext> => {
 function withCheck(facts: Omit<AccessContext, "check">): AccessContext {
   return { ...facts, check: (requirement) => decide(facts, requirement) };
 }
+
+/** The subset of the access context sent to the browser for UI hiding (PermissionsProvider). */
+export function toClientAccessFacts(context: AccessContext & { profile: Profile }) {
+  return {
+    role: context.profile.role,
+    permissions: [...context.permissions],
+    modules: { ...context.modules },
+  };
+}
