@@ -18,7 +18,9 @@ export const STATUS_LABELS: Record<StaffStatus, string> = {
 
 export function formatDateTime(value: string | null): string {
   if (!value) return "Never";
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(value),
-  );
+  return `${new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(new Date(value))} UTC`;
 }
