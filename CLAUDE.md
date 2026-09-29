@@ -26,6 +26,8 @@ Read this file at the start of every session. It is the permanent rulebook. Upda
 | Styling         | Tailwind CSS 4.3 (CSS-first config in `src/app/globals.css`)        |
 | UI              | shadcn 4.21 (`base-nova` style on Base UI 1.8), lucide-react        |
 | Validation      | Zod 4.6                                                             |
+| Editor          | Tiptap 3.31 (starter kit incl. link, `@tiptap/html` server render)  |
+| Drag and drop   | @dnd-kit core 6.3, sortable 10.0, utilities 3.2                     |
 | Forms           | react-hook-form 7.89, @hookform/resolvers 5.9                       |
 | Backend         | @supabase/supabase-js 2.117, @supabase/ssr 0.12, Supabase CLI 2.118 |
 | Tests           | Vitest 5.0, Playwright 1.63, pgTAP (`supabase test db`)             |
@@ -45,6 +47,8 @@ API you are unsure of. Known differences used here: `proxy.ts` replaces `middlew
 src/
   app/
     (public)/            public site routes; layout renders TopBar, SiteHeader, SiteFooter
+      [[...slug]]/       every CMS page ("/" = homepage; /home 308s to /); not-found.tsx
+      preview/[pageId]/  draft/revision preview for the editor iframe (content:view)
       (auth)/            sign-in, sign-up, forgot-password, reset-password (+ actions.ts)
       (auth)/auth/set-password/  password setup for invited staff
       auth/              route handlers: confirm (token_hash), callback (PKCE code), disabled
@@ -56,12 +60,14 @@ src/
       audit/             audit log viewer (super admin)
       media/             media library (media:view)
       settings/          settings tabs incl. branding preview and integrations (super admin)
-      content/ modules/  guarded placeholders for later phases
+      content/           pages list, actions.ts (all page/section actions), navigation/ (menus),
+                         pages/[id]/_editor/ (section list, form panel, preview iframe, history)
+      modules/           guarded placeholder (Phase 5)
     api/health/          GET /api/health
     brand-icon/          favicon (uploaded asset or generated mark)
     robots.ts            robots.txt from allow_indexing
     layout.tsx           theme CSS variables + fonts + default metadata from settings
-    globals.css, not-found.tsx (renders site chrome), error.tsx
+    globals.css, not-found.tsx (non-public 404s; renders site chrome), error.tsx
   core/                  platform code shared by everything
     env.ts               the ONLY place env vars are read
     site.ts              fallback site name only (real values come from site_settings)
@@ -75,17 +81,28 @@ src/
                          schemas.ts (settings form schemas)
     media/               types (MediaAsset, mediaPublicUrl), upload rules, dimensions,
                          SVG sanitizing, queries, actions, usage labels
-    navigation/          defaults.ts: TEMPORARY header/footer links (Phase 4 replaces)
+    sections/            section registry (client-safe): definitions/, fields.ts (form field
+                         metadata), common.ts (backgrounds, padding, anchors, heading rule),
+                         rich-text.ts + render-rich-text.ts, feeds.ts (FeedProvider registry)
+    pages/               loaders (getPublishedPage, link context), tags, reserved slugs, draft diff
+    links/               Link type + resolveLink()
+    icons/               curated icon registry (ICONS) + SiteIcon
+    navigation/          menu schema + getMenus() (cached, "menus" + "pages" tags)
+    contact/             contact form schema, rate limit, public submitContactForm action
     integrations/        test-connection.ts (Stripe/Mux fetch, Resend email)
     supabase/            client.ts (browser), server.ts, admin.ts, public.ts (cached, cookie-less),
                          proxy.ts, database.types.ts
-                         later: sections/, module registry
+                         later: module registry
   modules/               one folder per optional module (from Phase 6)
   components/ui/         shadcn components (generated; edit sparingly)
   components/shared/     shared primitives: Eyebrow, ActionLink, FormTextField, FormMessage,
                          ModuleDisabledNotice, useUnsavedChangesWarning
   components/media/      MediaImage, MediaPicker, MediaGrid, UploadZone, useMediaUpload
   components/site/       public chrome: TopBar, SiteHeader, SiteFooter, Logo, SiteContainer
+  components/sections/   section renderers (server components), primitives, renderers.ts map,
+                         render-sections.tsx, preview-bridge.tsx
+  components/section-editor/  generated forms: FieldInput, ListField, LinkField, IconField,
+                         RichTextField, editor context
   lib/                   small generic utilities (no Supabase, no business logic)
   proxy.ts               Supabase session refresh, x-pathname header, optimistic /admin
                          no-cookie redirect (speed only; not security)
@@ -94,7 +111,8 @@ supabase/
   tests/                 pgTAP tests (database/*.test.sql) + helpers.psql
   templates/             auth email templates (token_hash links to /auth/confirm; incl. invite)
   seed.sql               LOCAL test accounts only; never run against a client database
-tests/e2e/               Playwright tests (local Supabase); branding.spec.ts runs last, alone;
+seed/media/              starter images + manifest.json for `pnpm seed:media` (scripts/seed-media.mjs)
+tests/e2e/               Playwright tests (local Supabase); branding + navigation specs run last;
                          *-snapshots/ = visual baselines (macOS, skipped in CI)
 docs/design/             reference images
 docs/phases/             phase-N.md = the brief for phase N; phase-N-notes.md = what was built
@@ -327,7 +345,9 @@ declare it in `font-loaders.ts` (with `variable: "--font-<key>"`, `preload: fals
 - Let users choose files with `<MediaPicker value={asset} onChange={...} accept="image" />`. It
   searches, browses folders, and uploads in place. Every future feature needing an image uses it.
 - Select assets with `MEDIA_ASSET_COLUMNS` (never `*`; anon cannot read `uploaded_by`).
-- **media_references rule**: whenever a saved record points at an asset, record it in the same
+- **media_references rule**: pages and sections store images as `{ "mediaId": "<uuid>" }`
+  anywhere in their JSON; triggers (`media_ids_in` + `sync_media_references`) keep the references
+  in step, so section code does nothing extra. For a plain column, whenever a saved record points at an asset, record it in the same
   security definer function that saves the record: `perform public.set_media_reference(
 '<table>', <id>::text, '<field>', <media_id>)` (null clears it). Add a label for the new
   table/field in `src/core/media/usage.ts`. Referenced assets cannot be deleted.
@@ -339,12 +359,101 @@ declare it in `font-loaders.ts` (with `variable: "--font-<key>"`, `preload: fals
 `TopBar`, `SiteHeader` (navy; uses `logoOnDark ?? logo`, else the `Logo` wordmark fallback),
 `SiteFooter`, `SiteContainer` (1192px content column). Reuse `Eyebrow` (uppercase accent label
 with a leading dash) and `ActionLink` (`variant="accent" | "dark" | "text"`, optional
-`arrow="right" | "up-right"`) for every CTA. Header/footer links are temporary
-(`src/core/navigation/defaults.ts`) until Phase 4 menus.
+`arrow="right" | "up-right"`) for every CTA. Header and footer links come from the menus
+(`getMenus()`, see below).
 
 **Integrations**: `getIntegrationDetails()` (env.ts) reports configured/missing env var names
 (never values). Settings → Integrations tests Stripe/Mux with read-only fetches and sends a
 Resend test email to the super admin.
+
+## Pages, sections, and navigation
+
+**Model.** `pages` (title, slug, `is_home`, status, SEO, `published_sections` snapshot) own draft
+rows in `page_sections` (type, props JSON, background, padding, anchor_id, is_hidden,
+sort_order). Editors change only the draft (autosaved). `publish_page` copies the visible draft
+into `published_sections` and a `page_revisions` row (the last 20 are kept). The public site and
+anon RLS see only `published_sections` of published pages. `restore_revision` and `discard_draft`
+replace the draft; nothing goes live until the next publish. `reorder_sections` is the only way
+to change `sort_order` (all ids exactly once, atomic). Publishing columns are never writable
+directly (column grants). Every function checks `can('content', …)` and writes an audit entry.
+Permissions: view (editor, read only), create (new pages), edit (drafts, menus), publish
+(publish/unpublish), delete (pages; never the homepage, and only the super admin sets it).
+
+**Caching.** Published pages, the link context, and menus are read through the cookie-less
+cached client with tags `pages`, `page-<id>`, `menus` (`src/core/pages/tags.ts`). Actions call
+`expirePublicPages()` / `updateTag` after publishing, settings, or menu changes. Direct database
+edits (including `pnpm seed:media` and `db:reset`) are not visible to a running server until a
+tag is revalidated or the server restarts with a cleared `.next/cache`.
+
+**Heading rule.** The first visible section renders its heading as `h1`; all others use `h2`
+(`headingTagFor(index)`). Each page therefore has exactly one h1. Do not hard-code heading tags in
+a renderer; use `ctx.headingTag`.
+
+**Adding a section type** (checklist):
+
+1. `src/core/sections/definitions/<name>.ts`: `defineSection({ key, label, description, icon,
+schema, fields, defaults, backgrounds, defaultBackground })`. The Zod schema is the contract
+   (use the helpers in `shared.ts`: `text`, `media`, `link`, `action`, `iconKey`). Every
+   top-level schema key needs a matching entry in `fields` (the unit test enforces it). Images
+   are `media` fields (`{ mediaId }` or null) so media references work automatically.
+2. Register it in `SECTION_DEFINITIONS` (`registry.ts`); add a default padding in
+   `DEFAULT_PADDING` if it isn't "normal".
+3. Renderer: `src/components/sections/<name>.tsx`, a server component taking
+   `{ props, ctx }`. Use `SectionShell`, the primitives (`SectionEyebrow`, `SectionHeading`,
+   `RichTextContent`, `SectionImage`, `SectionAction`), `MediaImage` via `SectionImage`, theme
+   tokens only, and `ctx.headingTag`. Empty images render the neutral placeholder.
+4. Add it to the map in `src/components/sections/renderers.ts`.
+5. Tests: the registry test picks it up (defaults parse, fields match); add bad-input cases.
+6. Check it at 390px and 1440px in the editor preview.
+
+Invalid stored props never break the public page: `render-sections.tsx` skips a section whose
+props fail validation (and shows an error box in the editor preview).
+
+**Field types** (`fields.ts`): text, textarea, richtext, media, link, action (label + link),
+icon, select (static options, or `dynamicOptions: "feed-sources"`), toggle, number, list
+(`itemLabel`, `itemTitleField`, nested `fields`, `newItem`, `min`, `max`; drag and keyboard
+reorder). Forms are generated from these; there is no per-section form code.
+
+**Links.** Store links as the `Link` union (`src/core/links/types.ts`): `page` (by id, so renames
+keep working), `url` (`https://…` or a site path like `/pricing`), `anchor` (section anchor, optionally on another
+page), `email`, `phone`, `module` (module key + path). Always render with
+`resolveLink(link, ctx.links)`: it returns `{ href, external }` or `null` when the target page is
+unpublished/missing or the module is off, and callers hide the element on `null`.
+`linkAttributes()` adds `target`/`rel` for external or new-tab links. Edit with `<LinkField>`
+(inside `SectionEditorProvider`, which supplies pages and modules).
+
+**Icons.** Only keys in `src/core/icons/registry.ts` (`ICONS`, curated lucide icons) can be stored.
+Render with `<SiteIcon name={key} />`; choose with `<IconField>`. To add one, import it and add a
+kebab-case key.
+
+**Rich text** is Tiptap JSON limited to paragraphs, bold, italic, links, and lists (options in
+`RICH_TEXT_STARTER_KIT_OPTIONS`, shared by the editor and the renderer). Render only with `renderRichText()` (`@tiptap/html/server` + DOMPurify
+allow-list); never render stored HTML.
+
+**Module feeds.** A module adds a `FeedProvider` (`{ key, moduleKey, label, getItems(limit) }`,
+returning `FeedCard`s: image, category, date, title, href) to `FEED_PROVIDERS` in
+`src/core/sections/feeds.ts`. The Module feed section renders nothing publicly when the provider
+is missing, its module is off, or it has no items; the editor shows a placeholder instead.
+
+**Reserved slugs** (`src/core/pages/reserved-slugs.ts`): `admin`, `api`, auth routes, `preview`,
+module paths (`blog`, `shop`, …), and other app routes cannot be page slugs. Add to
+`RESERVED_SLUGS` whenever a new top-level route or module path appears. Slugs are lowercase
+letters, digits, and single hyphens.
+
+**Navigation.** Three menus: `header` (one dropdown level), `footer_1`, `footer_2` (flat, titled
+columns), edited at `/admin/content/navigation` and saved atomically by `save_menu` (content
+edit). `getMenus()` resolves links and drops items whose target is hidden, so unpublished pages
+and disabled modules never appear; the editor marks them with a warning.
+
+**Contact form.** The `contact_form` section posts to `submitContactForm` (public server action:
+honeypot field `website`, 5 per 10 minutes per IP in memory, Zod, `submit_contact_form` RPC which
+only accepts published pages that contain a contact form, then a Resend email to the contact
+address when configured). It works without JavaScript.
+
+**Seed content.** Migration `20260929150300_seed_content.sql` creates the North / Co homepage,
+About, Services, Our Impact, Contact (fixed ids `a0000000-0000-4000-8000-00000000000{1-5}`) and
+the menus, only when no pages/menu items exist. `pnpm seed:media` fills the image fields from
+`seed/media/manifest.json` (see README).
 
 ## Auth
 
@@ -386,6 +495,7 @@ pnpm db:reset                              # rebuild local DB from migrations + 
 pnpm db:push                               # apply migrations to the linked project
 pnpm db:types                              # regenerate types from the local DB
 pnpm db:types:linked                       # regenerate types from the linked project
+pnpm seed:media                            # upload seed/media and fill the seeded image fields
 ```
 
 After changing `supabase/config.toml` or `supabase/templates/`, restart local Supabase
@@ -395,30 +505,32 @@ CI (`.github/workflows/ci.yml`) has two jobs: (1) lint, typecheck, format:check,
 build with `SKIP_ENV_VALIDATION=1`; (2) local Supabase, pgTAP tests, integration tests, a
 generated-types drift check, and Playwright e2e.
 
+The homepage visual baselines assume a fresh `pnpm db:reset` followed by `pnpm seed:media`.
+
 Local test accounts (after `pnpm db:reset`): `superadmin@example.test`, `staff@example.test`,
 `user@example.test`, all with password `Password123!`. Local emails: Mailpit at
 http://127.0.0.1:54324.
 
 ## Current state
 
-**Phase 3 (Branding, settings, and media library) is complete.** What exists:
+**Phase 4 (Homepage section builder, pages, and navigation) is complete.** What exists:
 
-- Everything from Phases 0 to 2 (see `docs/phases/phase-0-notes.md` to `phase-2-notes.md`).
-- `site_settings` branding, contact, header/footer, social, SEO, and theme columns (North / Co
-  defaults), `update_site_settings` (allow-list, audited, records media references).
-- Media: `media` storage bucket, `media_folders`, `media_assets`, `media_references`, RLS and
-  storage policies by `can('media', ...)`; `/admin/media` library; `MediaImage`, `MediaPicker`.
-- Theming: cached `getSiteSettings()`, theme → CSS variables on `<html>`, derived shades,
-  curated fonts, contrast check; admin rebrands live (updateTag).
-- `/admin/settings`: General, Contact, Branding (live preview), Header & footer, Social, SEO,
-  Integrations (status + connection tests).
-- Public chrome: top bar, header (mobile sheet), footer; 404 page with chrome; `ActionLink`.
-- SEO: metadata from settings, `/brand-icon` favicon, `robots.txt` + noindex until launch.
-- Tests: 188 pgTAP assertions, 145 unit tests, 2 integration tests, 42 e2e tests (+ visual
-  baselines). CI runs all but the visual comparisons.
+- Everything from Phases 0 to 3 (see `docs/phases/phase-0-notes.md` to `phase-3-notes.md`).
+- Pages with draft sections, publish snapshots, revisions (last 20), restore/discard, homepage
+  switch, and RLS/functions for view/create/edit/publish/delete.
+- Eleven section types matching docs/design/ (hero, image with text, value strip, card grid,
+  stats, testimonial, CTA banner, intro with image, module feed, rich text, contact form).
+- `/admin/content`: pages list, create/duplicate/delete, visual editor with generated forms,
+  autosave, live preview iframe (click to select), drag and keyboard reorder, history.
+- Public rendering at `/[[...slug]]` with metadata, heading rule, and cached tags.
+- Database menus with an editor at `/admin/content/navigation`; header/footer read them.
+- Contact form with honeypot, rate limit, stored submissions, and Resend notification.
+- Seed content migration and `pnpm seed:media`.
+- Tests: 231 pgTAP assertions, 247 unit tests, 2 integration tests, 47 e2e tests (+ visual
+  baselines, including the seeded homepage at 390 and 1440).
 
-Not yet built: homepage sections, pages, and menus (Phase 4), module registry and module
-switches (Phase 5), modules.
+Not yet built: module registry and module switches (Phase 5), modules (the blog feed provider
+arrives in Phase 6), contact submission management (Phase 9).
 
 ## Phase roadmap
 
@@ -426,7 +538,7 @@ switches (Phase 5), modules.
 1. Core database, auth, and roles ✅
 2. Access control and admin shell ✅
 3. Branding, settings, and media library ✅
-4. Homepage section builder and pages
+4. Homepage section builder and pages ✅
 5. Module framework
 6. Blog
 7. Photo gallery

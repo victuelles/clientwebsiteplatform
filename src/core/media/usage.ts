@@ -12,6 +12,19 @@ const LABELS: Record<string, { entity: string; fields: Record<string, string>; h
       og_image_media_id: "Default share image",
     },
   },
+  pages: {
+    entity: "Page",
+    href: "/admin/content",
+    fields: {
+      og_image_media_id: "Share image",
+      published_sections: "Published version",
+    },
+  },
+  page_sections: {
+    entity: "Page",
+    href: "/admin/content",
+    fields: { props: "Section (draft)" },
+  },
 };
 
 export type MediaUsage = { label: string; href: string | null };
