@@ -90,7 +90,8 @@ export function protectedAction<S extends z.ZodType, T>(
 type DatabaseError = { code?: string; message: string };
 
 /** Error codes whose messages our SQL functions write for humans (see the migrations). */
-const READABLE_DB_CODES = new Set(["42501", "22023", "P0002"]);
+// 55000 (object_not_in_prerequisite_state): e.g. set_module_enabled naming a blocking module.
+const READABLE_DB_CODES = new Set(["42501", "22023", "P0002", "55000"]);
 
 /**
  * Turns an error from one of our SQL functions into an ActionError with its readable message

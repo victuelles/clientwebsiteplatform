@@ -26,10 +26,13 @@ export function SettingsTabs({
   values,
   assets,
   integrations,
+  initialTab = "general",
 }: {
   values: SettingsFormValues;
   assets: Record<string, MediaAsset>;
   integrations: React.ReactNode;
+  /** From ?tab= (e.g. links from the modules screen to Integrations). */
+  initialTab?: string;
 }) {
   const [dirty, setDirty] = useState<Partial<Record<SettingsSection, boolean>>>({});
   const onDirtyChange = useCallback(
@@ -40,7 +43,10 @@ export function SettingsTabs({
   useUnsavedChangesWarning(Object.values(dirty).some(Boolean));
 
   return (
-    <Tabs defaultValue="general" className="gap-6">
+    <Tabs
+      defaultValue={TABS.some((tab) => tab.value === initialTab) ? initialTab : "general"}
+      className="gap-6"
+    >
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <TabsList className="w-max">
           {TABS.map((tab) => (

@@ -12,8 +12,9 @@ import { SettingsTabs, type SettingsFormValues } from "./_components/settings-ta
 
 export const metadata: Metadata = { title: "Settings" };
 
-export default async function SettingsPage() {
+export default async function SettingsPage(props: PageProps<"/admin/settings">) {
   await requireSuperAdmin();
+  const { tab } = await props.searchParams;
   // Read fresh (not the public cache) so the admin always edits the current values.
   const supabase = await createClient();
   const { data: row, error } = await supabase.from("site_settings").select("*").single();
@@ -73,7 +74,12 @@ export default async function SettingsPage() {
         breadcrumbs={[{ label: "Settings" }]}
         description="Site details, branding, and integrations. Saved changes appear on the live site right away."
       />
-      <SettingsTabs values={values} assets={assets} integrations={<IntegrationsPanel />} />
+      <SettingsTabs
+        values={values}
+        assets={assets}
+        integrations={<IntegrationsPanel />}
+        initialTab={typeof tab === "string" ? tab : undefined}
+      />
     </>
   );
 }

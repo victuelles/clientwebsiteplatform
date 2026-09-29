@@ -110,7 +110,7 @@ begin
 
     if blocking is not null then
       raise exception '% requires %. Turn on % first.', module_label, blocking, blocking
-        using errcode = 'P0001';
+        using errcode = '55000';
     end if;
   else
     select string_agg(s.label, ', ' order by s.sort_order) into blocking
@@ -123,7 +123,7 @@ begin
     if blocking is not null then
       raise exception '% can''t be turned off while % is on. Turn off % first.',
         module_label, blocking, blocking
-        using errcode = 'P0001';
+        using errcode = '55000';
     end if;
   end if;
 

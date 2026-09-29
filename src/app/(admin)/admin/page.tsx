@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireStaffOrAdmin } from "@/core/access/guard";
 import { ROLE_LABELS } from "@/core/auth/roles";
+import { SiteIcon } from "@/core/icons/icon";
 
 import { HealthStatus } from "./_components/health-status";
 import { buildNav } from "./_shell/nav";
@@ -16,9 +17,13 @@ export default async function AdminDashboardPage() {
   // Also checked here: layouts are not re-run on every client-side navigation.
   const context = await requireStaffOrAdmin();
   const { profile } = context;
-  const areas = buildNav(context)
+  const nav = buildNav(context);
+  const areas = nav
+    .filter((group) => group.label !== "Modules")
     .flatMap((group) => group.items)
     .filter((item) => item.href !== "/admin");
+  // Enabled modules this user can open (buildNav already filters by module state and permission).
+  const modules = nav.find((group) => group.label === "Modules")?.items ?? [];
 
   return (
     <>
@@ -59,6 +64,28 @@ export default async function AdminDashboardPage() {
           </ul>
         )}
       </section>
+
+      {modules.length > 0 && (
+        <section aria-labelledby="modules-heading" className="space-y-3">
+          <h2 id="modules-heading" className="text-lg font-semibold">
+            Modules
+          </h2>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="dashboard-modules">
+            {modules.map((item) => (
+              <li key={item.href}>
+                <Link href={item.href} className="group block h-full">
+                  <Card className="h-full ring-border transition-shadow group-hover:shadow-md">
+                    <CardHeader className="flex flex-row items-center gap-3">
+                      <SiteIcon name={item.moduleIcon} className="size-5 text-accent" />
+                      <CardTitle className="group-hover:text-accent">{item.title}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section aria-labelledby="health-heading" className="space-y-3">
         <h2 id="health-heading" className="text-lg font-semibold">
