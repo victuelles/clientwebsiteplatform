@@ -781,6 +781,7 @@ export type Database = {
       publish_page: { Args: { page: string }; Returns: undefined };
       reorder_sections: { Args: { ordered_ids: string[]; page: string }; Returns: undefined };
       restore_revision: { Args: { revision: string }; Returns: undefined };
+      save_menu: { Args: { items: Json; menu_key: string; title: string }; Returns: number };
       set_home_page: { Args: { page: string }; Returns: undefined };
       set_media_reference: {
         Args: { entity_id: string; entity_table: string; field: string; media_id: string };

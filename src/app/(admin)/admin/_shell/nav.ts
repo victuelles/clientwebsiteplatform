@@ -3,7 +3,15 @@ import type { AccessRequirement } from "@/core/access/decide";
 import { SCOPES } from "@/core/access/scopes";
 
 export type NavIcon =
-  "dashboard" | "content" | "media" | "module" | "modules" | "staff" | "settings" | "audit";
+  | "dashboard"
+  | "content"
+  | "navigation"
+  | "media"
+  | "module"
+  | "modules"
+  | "staff"
+  | "settings"
+  | "audit";
 
 export type NavItem = { title: string; href: string; icon: NavIcon; description: string };
 export type NavGroup = { label: string; items: NavItem[] };
@@ -32,6 +40,13 @@ const NAV_CONFIG: { label: string; items: NavConfigItem[] }[] = [
         href: "/admin/content",
         icon: "content",
         description: "Homepage and pages",
+        requires: { scope: "content", action: "view" },
+      },
+      {
+        title: "Navigation",
+        href: "/admin/content/navigation",
+        icon: "navigation",
+        description: "Header and footer menus",
         requires: { scope: "content", action: "view" },
       },
       {

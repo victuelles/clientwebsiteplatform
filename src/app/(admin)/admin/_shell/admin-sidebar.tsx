@@ -6,6 +6,7 @@ import {
   Image as ImageIcon,
   LayoutDashboard,
   LogOut,
+  Menu as MenuIcon,
   Puzzle,
   ScrollText,
   Settings,
@@ -50,6 +51,7 @@ import type { NavGroup, NavIcon } from "./nav";
 const ICONS: Record<NavIcon, LucideIcon> = {
   dashboard: LayoutDashboard,
   content: FileText,
+  navigation: MenuIcon,
   media: ImageIcon,
   module: Shapes,
   modules: Puzzle,
@@ -60,10 +62,18 @@ const ICONS: Record<NavIcon, LucideIcon> = {
 
 export type SidebarUser = { name: string; email: string; roleLabel: string };
 
-function isActive(pathname: string, href: string) {
+function matches(pathname: string, href: string) {
   return href === "/admin"
     ? pathname === "/admin"
     : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** The most specific matching item is active (Navigation lives under /admin/content). */
+function isActive(pathname: string, href: string, allHrefs: string[]) {
+  return (
+    matches(pathname, href) &&
+    !allHrefs.some((other) => other.length > href.length && matches(pathname, other))
+  );
 }
 
 function initials(name: string) {
@@ -84,6 +94,7 @@ export function AdminSidebar({
   user: SidebarUser;
 }) {
   const pathname = usePathname();
+  const allHrefs = nav.flatMap((group) => group.items.map((item) => item.href));
   const { isMobile, setOpenMobile } = useSidebar();
   const closeOnMobile = () => {
     if (isMobile) setOpenMobile(false);
@@ -125,7 +136,7 @@ export function AdminSidebar({
                 <SidebarMenu>
                   {group.items.map((item) => {
                     const Icon = ICONS[item.icon];
-                    const active = isActive(pathname, item.href);
+                    const active = isActive(pathname, item.href, allHrefs);
                     return (
                       <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton

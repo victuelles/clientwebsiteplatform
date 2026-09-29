@@ -1,7 +1,7 @@
 import { Mail, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 
-import { DEFAULT_FOOTER_COLUMNS } from "@/core/navigation/defaults";
+import { getMenus } from "@/core/navigation/menus";
 import type { SiteSettings } from "@/core/settings/get-settings";
 import { SOCIAL_PLATFORMS } from "@/core/settings/social";
 
@@ -18,7 +18,8 @@ function platformLabel(key: string) {
 }
 
 /** Navy footer: brand column, link columns, contact column, and the legal row. */
-export function SiteFooter({ settings }: { settings: SiteSettings }) {
+export async function SiteFooter({ settings }: { settings: SiteSettings }) {
+  const { footer } = await getMenus();
   const { phone, contactEmail, locationLabel } = settings;
   const hasContact = Boolean(phone || contactEmail || locationLabel);
 
@@ -60,13 +61,17 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
           </div>
 
           <div className="grid grid-cols-2 gap-6 lg:contents">
-            {DEFAULT_FOOTER_COLUMNS.map((column) => (
-              <nav key={column.title} aria-label={column.title} className="space-y-5">
-                <h2 className="text-[13px] font-medium">{column.title}</h2>
+            {footer.map((column, index) => (
+              <nav key={index} aria-label={column.title || "Footer links"} className="space-y-5">
+                {column.title && <h2 className="text-[13px] font-medium">{column.title}</h2>}
                 <ul className="space-y-[13px] text-xs text-navy-foreground/65">
-                  {column.links.map((link) => (
-                    <li key={link.href}>
-                      <Link href={link.href} className="transition-colors hover:text-accent">
+                  {column.items.map((link) => (
+                    <li key={link.href + link.label}>
+                      <Link
+                        href={link.href}
+                        className="transition-colors hover:text-accent"
+                        {...(link.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                      >
                         {link.label}
                       </Link>
                     </li>
