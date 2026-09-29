@@ -771,6 +771,13 @@ export type Database = {
       media_ids_in: { Args: { doc: Json }; Returns: string[] };
       module_enabled: { Args: { scope_key: string }; Returns: boolean };
       page_draft_snapshot: { Args: { page: string }; Returns: Json };
+      profile_names: {
+        Args: { ids: string[] };
+        Returns: {
+          id: string;
+          name: string;
+        }[];
+      };
       publish_page: { Args: { page: string }; Returns: undefined };
       reorder_sections: { Args: { ordered_ids: string[]; page: string }; Returns: undefined };
       restore_revision: { Args: { revision: string }; Returns: undefined };
