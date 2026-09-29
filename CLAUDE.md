@@ -52,7 +52,11 @@ src/
       (auth)/            sign-in, sign-up, forgot-password, reset-password (+ actions.ts)
       (auth)/auth/set-password/  password setup for invited staff
       auth/              route handlers: confirm (token_hash), callback (PKCE code), disabled
-      account/           signed-in user's profile page
+      account/           layout (Profile + enabled modules' accountNav), profile page,
+                         module placeholders (orders, listings, bookings)
+      blog/, gallery/, videos/, shop/, cart/, checkout/, booking/, directory/
+                         module public routes: layout calls requireModulePublic(key) (404 when
+                         off); Coming soon placeholders until each module's phase
       not-authorized/
     (admin)/admin/       admin portal: layout (shell + PermissionsProvider), dashboard
       _shell/            sidebar, nav config (buildNav), AdminPageHeader, PhasePlaceholder
@@ -62,7 +66,9 @@ src/
       settings/          settings tabs incl. branding preview and integrations (super admin)
       content/           pages list, actions.ts (all page/section actions), navigation/ (menus),
                          pages/[id]/_editor/ (section list, form panel, preview iframe, history)
-      modules/           guarded placeholder (Phase 5)
+      modules/           module switches (super admin), data.ts, actions.ts,
+                         [key]/settings (manifest settings form)
+      m/[key]/           module admin placeholder; a module's own m/<key>/ route replaces it
     api/health/          GET /api/health
     brand-icon/          favicon (uploaded asset or generated mark)
     robots.ts            robots.txt from allow_indexing
@@ -92,8 +98,14 @@ src/
     integrations/        test-connection.ts (Stripe/Mux fetch, Resend email)
     supabase/            client.ts (browser), server.ts, admin.ts, public.ts (cached, cookie-less),
                          proxy.ts, database.types.ts
-                         later: module registry
-  modules/               one folder per optional module (from Phase 6)
+    modules/             THE module registry: types.ts (ModuleManifest), registry.ts (client-safe
+                         helpers + validation), registry.server.ts (getEnabledModules cached
+                         with tag "modules", feed providers, renderers, data summary, health),
+                         rules.ts (enable/disable/health decisions), guard.ts
+                         (requireModulePublic, requireModuleEnabled), tags.ts
+  modules/<key>/         one folder per optional module: module.ts (manifest, client-safe),
+                         optional module.server.ts; later components/, actions/, queries/,
+                         sections/, admin/ (pnpm module:new)
   components/ui/         shadcn components (generated; edit sparingly)
   components/shared/     shared primitives: Eyebrow, ActionLink, FormTextField, FormMessage,
                          ModuleDisabledNotice, useUnsavedChangesWarning
@@ -110,9 +122,12 @@ supabase/
   migrations/            the schema (single source of truth)
   tests/                 pgTAP tests (database/*.test.sql) + helpers.psql
   templates/             auth email templates (token_hash links to /auth/confirm; incl. invite)
+                         and module-table.sql (the module table RLS template)
   seed.sql               LOCAL test accounts only; never run against a client database
 seed/media/              starter images + manifest.json for `pnpm seed:media` (scripts/seed-media.mjs)
-tests/e2e/               Playwright tests (local Supabase); branding + navigation specs run last;
+scripts/                 seed-media.mjs, module-new.mjs (pnpm module:new)
+tests/e2e/               Playwright tests (local Supabase); branding + navigation specs, then
+                         modules.spec.ts, run last; the e2e server never has integration keys;
                          *-snapshots/ = visual baselines (macOS, skipped in CI)
 docs/design/             reference images
 docs/phases/             phase-N.md = the brief for phase N; phase-N-notes.md = what was built
@@ -123,8 +138,9 @@ docs/phases/             phase-N.md = the brief for phase N; phase-N-notes.md = 
 - Each module in `src/modules/<name>/` owns its routes, components, server actions, and registry
   entry.
 - **Core code must never import a module directly.** Core finds modules only through the module
-  registry (Phase 5). Modules may import from core, `components`, and `lib`, but not from each
-  other.
+  registry (`src/core/modules/registry.ts` and `registry.server.ts`, the only files that import
+  `src/modules/*`). Modules may import from core, `components`, and `lib`, but not from each
+  other. Route files in `src/app` for a module are thin shells.
 - Something two modules both need belongs in core.
 
 ## Role model
@@ -145,17 +161,18 @@ docs/phases/             phase-N.md = the brief for phase N; phase-N-notes.md = 
 
 ## Database
 
-| Table               | Purpose                                                                                                                                                                          |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `profiles`          | One row per auth user: email (citext), full_name, avatar_url, role, is_active                                                                                                    |
-| `site_settings`     | Single row (`id = true`): site_name, contact_email (branding in Phase 3)                                                                                                         |
-| `permission_scopes` | Areas a permission applies to. Core: `content`, `media`. Module: `blog`, `photo_gallery`, `video_gallery`, `shop`, `directory`, `inventory`, `crm`, `booking`, `email_marketing` |
-| `modules`           | `enabled` flag per module scope (all start disabled)                                                                                                                             |
-| `staff_permissions` | `(user_id, scope, action)` grants; never updated, only inserted/deleted                                                                                                          |
-| `media_folders`     | Media library folders (unique name per parent; only empty ones can be deleted)                                                                                                   |
-| `media_assets`      | Files in the public `media` bucket: path, filename, type, size, dimensions, alt text, caption, folder                                                                            |
-| `media_references`  | Where each asset is used (FK restrict blocks deleting assets in use)                                                                                                             |
-| `audit_log`         | Append-only log, written only by security definer functions (`log_audit`, admin functions)                                                                                       |
+| Table                 | Purpose                                                                                                                                                                                               |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `profiles`            | One row per auth user: email (citext), full_name, avatar_url, role, is_active                                                                                                                         |
+| `site_settings`       | Single row (`id = true`): site_name, contact_email (branding in Phase 3)                                                                                                                              |
+| `permission_scopes`   | Areas a permission applies to. Core: `content`, `media`. Module: `blog`, `photo_gallery`, `video_gallery`, `shop`, `directory`, `inventory`, `crm`, `booking`, `email_marketing`                      |
+| `modules`             | Per module scope: `enabled`, `settings` (jsonb object), `enabled_at`, `disabled_at`, `enabled_by`. Changed only by `set_module_enabled` / `update_module_settings`; anon reads key, enabled, settings |
+| `module_dependencies` | `(module_key, requires_key)` hard dependencies, mirroring the manifests' `requiresModules` (integration test)                                                                                         |
+| `staff_permissions`   | `(user_id, scope, action)` grants; never updated, only inserted/deleted                                                                                                                               |
+| `media_folders`       | Media library folders (unique name per parent; only empty ones can be deleted)                                                                                                                        |
+| `media_assets`        | Files in the public `media` bucket: path, filename, type, size, dimensions, alt text, caption, folder                                                                                                 |
+| `media_references`    | Where each asset is used (FK restrict blocks deleting assets in use)                                                                                                                                  |
+| `audit_log`           | Append-only log, written only by security definer functions (`log_audit`, admin functions)                                                                                                            |
 
 Enums: `app_role` (`super_admin`, `staff`, `user`), `permission_action` (`view`, `create`, `edit`,
 `delete`, `publish`). Seeds that every client needs (scopes, modules, the settings row) live in
@@ -177,7 +194,10 @@ All are `stable security definer set search_path = ''`, executable by anon and a
 Admin functions (super admin only, audited, readable exceptions): `set_user_role` (leaving staff
 deletes all grants), `set_user_active`, `set_module_enabled`, `set_staff_permissions(user, jsonb)`
 (atomic replace, one audit entry with added/removed), `admin_list_staff(user?)` (staff with
-invite state and last sign-in). `get_my_permissions()` returns the caller's effective
+invite state and last sign-in). `set_module_enabled` refuses to enable a module whose required modules are off, or to disable one
+an enabled module requires (errcode 55000, message names the blockers), and records timestamps.
+`update_module_settings(key, jsonb)` (super admin; allowed while the module is off) audits the
+changed keys. `get_my_permissions()` returns the caller's effective
 (scope, action) rows (all of them for the super admin). `log_audit(action, scope, target_table, target_id,
 metadata)` records an action by the signed-in user. `bootstrap_super_admin` is service_role only.
 
@@ -450,14 +470,22 @@ kebab-case key.
 `RICH_TEXT_STARTER_KIT_OPTIONS`, shared by the editor and the renderer). Render only with `renderRichText()` (`@tiptap/html/server` + DOMPurify
 allow-list); never render stored HTML.
 
-**Module feeds.** A module adds a `FeedProvider` (`{ key, moduleKey, label, getItems(limit) }`,
-returning `FeedCard`s: image, category, date, title, href) to `FEED_PROVIDERS` in
-`src/core/sections/feeds.ts`. The Module feed section renders nothing publicly when the provider
-is missing, its module is off, or it has no items; the editor shows a placeholder instead.
+**Module feeds.** A module declares a feed in its manifest (`feeds: [{ key, label }]`) and
+implements a `FeedProvider` (`{ key, moduleKey, label, getItems(limit) }`, returning `FeedCard`s:
+image, category, date, title, href) in `module.server.ts` (`feedProviders`); `feeds.ts` reads them
+from the registry. The Module feed section is offered only while a feed module is on, and
+renders nothing publicly when the provider is missing, its module is off, or it has no items; the
+editor shows a placeholder instead.
+
+**Module sections.** A module contributes section types through its manifest's `sectionTypes`
+(definitions) and `module.server.ts` `sectionRenderers`. The registry marks them
+`requiresModule`; `sectionUnavailableReason()` (`src/core/sections/availability.ts`) hides them in
+"Add section", `addSection` rejects them, the public site skips them (before heading numbering),
+and the editor flags them "Module off" while the module is off.
 
 **Reserved slugs** (`src/core/pages/reserved-slugs.ts`): `admin`, `api`, auth routes, `preview`,
-module paths (`blog`, `shop`, …), and other app routes cannot be page slugs. Add to
-`RESERVED_SLUGS` whenever a new top-level route or module path appears. Slugs are lowercase
+and other app routes cannot be page slugs; module paths (`blog`, `shop`, `cart`, …) come from the
+manifests' `publicRoutes`. Add to `APP_PATHS` whenever a new top-level app route appears. Slugs are lowercase
 letters, digits, and single hyphens.
 
 **Navigation.** Three menus: `header` (one dropdown level), `footer_1`, `footer_2` (flat, titled
@@ -474,6 +502,67 @@ address when configured). It works without JavaScript.
 About, Services, Our Impact, Contact (fixed ids `a0000000-0000-4000-8000-00000000000{1-5}`) and
 the menus, only when no pages/menu items exist. `pnpm seed:media` fills the image fields from
 `seed/media/manifest.json` (see README).
+
+## Modules
+
+**Disabled module behavior (enforced everywhere).** While a module is off:
+
+- Its public routes return the site's 404 (`requireModulePublic(key)` in each public layout).
+- Its admin nav items, admin pages, and account page links disappear for staff and users. The
+  super admin can still open its admin pages, which show `ModuleDisabledNotice` above the data
+  rendered read-only (edit controls check `context.check({ scope, action: "edit" })`, which is
+  `"module_disabled"`, never `"allowed"`, while the module is off).
+- Its section types and feed items are skipped publicly and hidden in "Add section"; menu and
+  button links to it are hidden (`resolveLink` with the cached module state).
+- All creates, updates, and deletes are blocked for everyone, including the super admin, in the
+  app (`protectedAction` via `can`) and in RLS (the policy template).
+- Its data is never deleted or changed. Turning it back on restores everything.
+
+**Registry.** `src/core/modules/registry.ts` (client-safe) lists every manifest and exports
+`listModules`, `getModule`, `reservedModulePaths`, `adminNavItems`, `accountNavItems`,
+`sectionTypesByModule`, `moduleSectionDefinitions`, `feedSources`, `dependentsOf`, and
+`validateRegistry` (unique keys, keys match module scopes, one owner per public path, known
+dependencies, no cycles; it runs when the file loads, so a broken registry fails `next build`, and
+in a unit test). `registry.server.ts` adds `getEnabledModules()` (cached, tag `modules`),
+`listFeedProviders`, `moduleSectionRenderers`, `getModuleDataSummary`, and `getModuleHealth`
+(missing required integrations + the module's `getHealth`). The manifest is split so browser
+code can read it: `module.ts` (data only) and `module.server.ts` (functions, `server-only`).
+
+**Switching.** `/admin/modules` (super admin) → `setModuleEnabled` (checks integrations and
+dependencies for a readable message) → `set_module_enabled` (enforces dependencies again, audits)
+→ `updateTag` for `modules`, `menus`, `pages` + `revalidatePath("/", "layout")`, so the public
+site, admin, and account area update at once. Module settings: `/admin/modules/[key]/settings`
+renders the manifest's `settings` (`{ schema, fields }`) with the section form generator and
+saves through `update_module_settings`. The account area and admin read module state from the
+access context (fresh per request); public pages read the cached `getEnabledModules()`. Direct
+database changes to `modules` need a tag revalidation or restart, like pages.
+
+### How to build a module (checklist for every module phase)
+
+1. `pnpm module:new <key>` (add `--dry-run` first). It never overwrites.
+2. Complete `src/modules/<key>/module.ts` (actions, `publicRoutes`, `adminNav` under
+   `/admin/m/<key>`, `accountNav` under `/account/`, `sectionTypes`, `feeds`, `requiresModules` +
+   a migration row in `module_dependencies`, `worksWithModules`, integrations, `settings`) and
+   `module.server.ts` (add it to `SERVER_MANIFESTS` in `registry.server.ts`).
+3. Tables: start from the generated migration (`supabase/templates/module-table.sql`); keep the
+   policy pattern, index `user_id` and policy columns, revoke what roles never need. Then
+   `pnpm db:reset && pnpm test:db && pnpm db:types`.
+4. Public routes: `src/app/(public)/<path>/layout.tsx` calls `requireModulePublic(key)`; replace
+   the Coming soon page. Admin pages: `src/app/(admin)/admin/m/<key>/…` with
+   `requireAccess({ scope: key, action })`; show `ModuleDisabledNotice` + read-only data when
+   `moduleDisabled`, and `ModuleHealthWarnings`. Account pages: check `context.modules[key]`.
+5. Writes: `protectedAction({ scope: key, … })` and `protectedRoute`; never the admin client for
+   user requests.
+6. Sections and feeds only through the manifest (never import module code from core).
+7. Images: `{ mediaId }` in JSON, or `set_media_reference` for plain columns + a label in
+   `src/core/media/usage.ts`.
+8. Webhooks/background tasks: verify signatures, then `requireModuleEnabled(key)` before starting
+   anything new; they may still record events for records that already exist.
+9. `getDataSummary` (counts for the disable dialog) and `getHealth` if the module can break.
+10. Tests: pgTAP for every role (anon, user, owner, staff with/without each permission, inactive
+    staff, super admin) with the module on and off (copy `08_module_policy_template.test.sql`);
+    Playwright for enable/disable (public 404, nav, links, sections, staff access).
+11. Add reserved app paths if any, update CLAUDE.md, and write `phase-N-notes.md`.
 
 ## Auth
 
@@ -534,7 +623,7 @@ http://127.0.0.1:54324.
 
 ## Current state
 
-**Phase 4 (Homepage section builder, pages, and navigation) is complete.** What exists:
+**Phase 5 (Module framework) is complete.** What exists:
 
 - Everything from Phases 0 to 3 (see `docs/phases/phase-0-notes.md` to `phase-3-notes.md`).
 - Pages with draft sections, publish snapshots, revisions (last 20), restore/discard, homepage
@@ -547,11 +636,15 @@ http://127.0.0.1:54324.
 - Database menus with an editor at `/admin/content/navigation`; header/footer read them.
 - Contact form with honeypot, rate limit, stored submissions, and Resend notification.
 - Seed content migration and `pnpm seed:media`.
-- Tests: 231 pgTAP assertions, 247 unit tests, 2 integration tests, 47 e2e tests (+ visual
+- Module registry with manifests for all nine modules, validation, cached enabled state, health,
+  `/admin/modules` switches with dependency and integration checks, module settings, placeholder
+  admin/public/account pages, the module table RLS template, and `pnpm module:new`
+  (see `docs/phases/phase-5-notes.md`).
+- Tests: 343 pgTAP assertions, 282 unit tests, 4 integration tests, 52 e2e tests (+ visual
   baselines, including the seeded homepage at 390 and 1440).
 
-Not yet built: module registry and module switches (Phase 5), modules (the blog feed provider
-arrives in Phase 6), contact submission management (Phase 9).
+Not yet built: the modules themselves (Phase 6 onward; the blog feed provider is a placeholder
+returning no items), contact submission management (Phase 9).
 
 ## Phase roadmap
 
@@ -560,7 +653,7 @@ arrives in Phase 6), contact submission management (Phase 9).
 2. Access control and admin shell ✅
 3. Branding, settings, and media library ✅
 4. Homepage section builder and pages ✅
-5. Module framework
+5. Module framework ✅
 6. Blog
 7. Photo gallery
 8. Video gallery
