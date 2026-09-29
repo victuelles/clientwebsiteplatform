@@ -260,10 +260,9 @@ content_path = "./supabase/templates/recovery.html"
 subject = "Confirm your new email"
 content_path = "./supabase/templates/email_change.html"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+[auth.email.template.invite]
+subject = "You're invited"
+content_path = "./supabase/templates/invite.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

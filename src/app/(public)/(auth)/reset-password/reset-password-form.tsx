@@ -11,7 +11,7 @@ import { resetPasswordSchema, type ResetPasswordValues } from "@/core/auth/schem
 import { updatePassword } from "../actions";
 import { SubmitButton } from "../_components/submit-button";
 
-export function ResetPasswordForm() {
+export function ResetPasswordForm({ submitLabel = "Update password" }: { submitLabel?: string }) {
   const form = useForm<ResetPasswordValues>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { password: "", confirmPassword: "" },
@@ -44,7 +44,7 @@ export function ResetPasswordForm() {
           autoComplete="new-password"
         />
       </FieldGroup>
-      <SubmitButton pending={form.formState.isSubmitting}>Update password</SubmitButton>
+      <SubmitButton pending={form.formState.isSubmitting}>{submitLabel}</SubmitButton>
     </form>
   );
 }

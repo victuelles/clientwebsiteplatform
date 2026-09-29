@@ -25,6 +25,8 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 type AuditConfig<I, T> = {
   action: string;
+  /** Skip the entry when this returns false (e.g. nothing changed). */
+  when?: (input: I, data: T) => boolean;
   scope?: string;
   target?: (input: I, data: T) => { table: string; id: string };
   metadata?: (input: I, data: T) => Record<string, unknown>;
@@ -63,7 +65,7 @@ export function protectedAction<S extends z.ZodType, T>(
       const supabase = await createClient();
       const data = await handler({ input: parsed.data, context, supabase });
 
-      if (audit) {
+      if (audit && (audit.when?.(parsed.data, data) ?? true)) {
         const target = audit.target?.(parsed.data, data);
         const { error } = await supabase.rpc("log_audit", {
           action: audit.action,
@@ -83,4 +85,18 @@ export function protectedAction<S extends z.ZodType, T>(
       return { ok: false, error: GENERIC_ERROR };
     }
   };
+}
+
+type DatabaseError = { code?: string; message: string };
+
+/** Error codes whose messages our SQL functions write for humans (see the migrations). */
+const READABLE_DB_CODES = new Set(["42501", "22023", "P0002"]);
+
+/**
+ * Turns an error from one of our SQL functions into an ActionError with its readable message
+ * (e.g. "The super admin cannot be deactivated."); anything else stays internal.
+ */
+export function toActionError(error: DatabaseError): Error {
+  if (error.code && READABLE_DB_CODES.has(error.code)) return new ActionError(error.message);
+  return new Error(`Database error ${error.code ?? ""}: ${error.message}`);
 }

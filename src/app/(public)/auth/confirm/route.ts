@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
 
     if (!error && data.user) {
       if (type === "recovery") redirect("/reset-password");
+      if (type === "invite") redirect("/auth/set-password");
       redirect(await finishSignIn(supabase, data.user.id, searchParams.get("next")));
     }
   }
