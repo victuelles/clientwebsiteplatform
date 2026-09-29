@@ -36,6 +36,140 @@ export type Database = {
         };
         Relationships: [];
       };
+      media_assets: {
+        Row: {
+          alt_text: string | null;
+          caption: string | null;
+          created_at: string;
+          filename: string;
+          folder_id: string | null;
+          height: number | null;
+          id: string;
+          mime_type: string;
+          size_bytes: number;
+          storage_path: string;
+          updated_at: string;
+          uploaded_by: string | null;
+          width: number | null;
+        };
+        Insert: {
+          alt_text?: string | null;
+          caption?: string | null;
+          created_at?: string;
+          filename: string;
+          folder_id?: string | null;
+          height?: number | null;
+          id?: string;
+          mime_type: string;
+          size_bytes: number;
+          storage_path: string;
+          updated_at?: string;
+          uploaded_by?: string | null;
+          width?: number | null;
+        };
+        Update: {
+          alt_text?: string | null;
+          caption?: string | null;
+          created_at?: string;
+          filename?: string;
+          folder_id?: string | null;
+          height?: number | null;
+          id?: string;
+          mime_type?: string;
+          size_bytes?: number;
+          storage_path?: string;
+          updated_at?: string;
+          uploaded_by?: string | null;
+          width?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "media_assets_folder_id_fkey";
+            columns: ["folder_id"];
+            isOneToOne: false;
+            referencedRelation: "media_folders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "media_assets_uploaded_by_fkey";
+            columns: ["uploaded_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      media_folders: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          name: string;
+          parent_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          name: string;
+          parent_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          name?: string;
+          parent_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "media_folders_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "media_folders_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "media_folders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      media_references: {
+        Row: {
+          created_at: string;
+          entity_id: string;
+          entity_table: string;
+          field: string;
+          media_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          entity_id: string;
+          entity_table: string;
+          field: string;
+          media_id: string;
+        };
+        Update: {
+          created_at?: string;
+          entity_id?: string;
+          entity_table?: string;
+          field?: string;
+          media_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "media_references_media_id_fkey";
+            columns: ["media_id"];
+            isOneToOne: false;
+            referencedRelation: "media_assets";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       modules: {
         Row: {
           enabled: boolean;
@@ -213,6 +347,34 @@ export type Database = {
         };
         Relationships: [
           {
+            foreignKeyName: "site_settings_favicon_media_fk";
+            columns: ["favicon_media_id"];
+            isOneToOne: false;
+            referencedRelation: "media_assets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "site_settings_logo_media_fk";
+            columns: ["logo_media_id"];
+            isOneToOne: false;
+            referencedRelation: "media_assets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "site_settings_logo_on_dark_media_fk";
+            columns: ["logo_on_dark_media_id"];
+            isOneToOne: false;
+            referencedRelation: "media_assets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "site_settings_og_image_media_fk";
+            columns: ["og_image_media_id"];
+            isOneToOne: false;
+            referencedRelation: "media_assets";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "site_settings_updated_by_fkey";
             columns: ["updated_by"];
             isOneToOne: false;
@@ -326,6 +488,10 @@ export type Database = {
         Returns: undefined;
       };
       module_enabled: { Args: { scope_key: string }; Returns: boolean };
+      set_media_reference: {
+        Args: { entity_id: string; entity_table: string; field: string; media_id: string };
+        Returns: undefined;
+      };
       set_module_enabled: { Args: { enabled: boolean; module_key: string }; Returns: undefined };
       set_staff_permissions: {
         Args: { permissions: Json; target_user: string };
