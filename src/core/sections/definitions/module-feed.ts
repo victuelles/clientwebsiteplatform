@@ -49,9 +49,10 @@ export const moduleFeedSection = defineSection({
   },
   backgrounds: ["light", "white"],
   defaultBackground: "light",
+  requiresFeedModule: true,
   requirement: {
     kind: "feed-provider",
     message:
-      "Shows items once a module that provides them (like the blog) is turned on and has content.",
+      "Shows the latest items from a module that provides them (like the blog) once it has content.",
   },
 });

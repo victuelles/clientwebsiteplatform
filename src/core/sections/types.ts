@@ -23,6 +23,13 @@ export type SectionDefinition<S extends z.ZodType = z.ZodType> = {
   defaultBackground: SectionBackground;
   /** Shown in the "Add section" dialog when the section depends on something else. */
   requirement?: { kind: "feed-provider"; message: string };
+  /**
+   * Available only while this module is on: hidden in "Add section", skipped on the public site,
+   * and flagged in the editor. Set by the module registry for sections a module contributes.
+   */
+  requiresModule?: string;
+  /** Available only while a module that provides a feed is on (the Module feed section). */
+  requiresFeedModule?: boolean;
 };
 
 /** A stored section (draft row or published snapshot entry). */

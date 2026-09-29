@@ -1,9 +1,10 @@
 import "server-only";
 
 import type { MediaAsset } from "@/core/media/types";
+import { listFeedProviders } from "@/core/modules/registry.server";
 
-// Module feed providers. A module (Phase 6+: blog) registers a provider so the "Module feed"
-// section can show its latest items. The registry is empty until then.
+// Module feed providers. A module declares a feed in its manifest (`feeds`) and implements it in
+// module.server.ts (`feedProviders`) so the "Module feed" section can show its latest items.
 
 export type FeedCard = {
   id: string;
@@ -25,13 +26,11 @@ export type FeedProvider = {
   getItems: (limit: number) => Promise<FeedCard[]>;
 };
 
-export const FEED_PROVIDERS: FeedProvider[] = [];
-
 export function getFeedProvider(key: string): FeedProvider | undefined {
-  return FEED_PROVIDERS.find((provider) => provider.key === key);
+  return listFeedProviders().find((provider) => provider.key === key);
 }
 
 /** Options for the section's "Source" select. */
 export function feedSourceOptions(): { value: string; label: string }[] {
-  return FEED_PROVIDERS.map((provider) => ({ value: provider.key, label: provider.label }));
+  return listFeedProviders().map((provider) => ({ value: provider.key, label: provider.label }));
 }
