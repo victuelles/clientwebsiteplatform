@@ -286,26 +286,75 @@ export type Database = {
         };
         Relationships: [];
       };
+      module_dependencies: {
+        Row: {
+          module_key: string;
+          requires_key: string;
+        };
+        Insert: {
+          module_key: string;
+          requires_key: string;
+        };
+        Update: {
+          module_key?: string;
+          requires_key?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "module_dependencies_module_key_fkey";
+            columns: ["module_key"];
+            isOneToOne: false;
+            referencedRelation: "modules";
+            referencedColumns: ["key"];
+          },
+          {
+            foreignKeyName: "module_dependencies_requires_key_fkey";
+            columns: ["requires_key"];
+            isOneToOne: false;
+            referencedRelation: "modules";
+            referencedColumns: ["key"];
+          },
+        ];
+      };
       modules: {
         Row: {
+          disabled_at: string | null;
           enabled: boolean;
+          enabled_at: string | null;
+          enabled_by: string | null;
           key: string;
+          settings: NonNullable<Json>;
           updated_at: string;
           updated_by: string | null;
         };
         Insert: {
+          disabled_at?: string | null;
           enabled?: boolean;
+          enabled_at?: string | null;
+          enabled_by?: string | null;
           key: string;
+          settings?: NonNullable<Json>;
           updated_at?: string;
           updated_by?: string | null;
         };
         Update: {
+          disabled_at?: string | null;
           enabled?: boolean;
+          enabled_at?: string | null;
+          enabled_by?: string | null;
           key?: string;
+          settings?: NonNullable<Json>;
           updated_at?: string;
           updated_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "modules_enabled_by_fkey";
+            columns: ["enabled_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "modules_key_fkey";
             columns: ["key"];
@@ -815,6 +864,7 @@ export type Database = {
       };
       system_publish_page: { Args: { page: string }; Returns: undefined };
       unpublish_page: { Args: { page: string }; Returns: undefined };
+      update_module_settings: { Args: { module_key: string; settings: Json }; Returns: Json };
       update_site_settings: { Args: { changes: Json }; Returns: string[] };
     };
     Enums: {

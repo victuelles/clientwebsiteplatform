@@ -57,4 +57,16 @@ describe("scope registry", () => {
         .sort(),
     ).toEqual((data ?? []).map((row) => row.key));
   });
+
+  it("mirrors every manifest's requiresModules in public.module_dependencies", async () => {
+    const { data, error } = await localClient()
+      .from("module_dependencies")
+      .select("module_key, requires_key");
+    expect(error).toBeNull();
+    const fromDatabase = (data ?? []).map((row) => `${row.module_key} -> ${row.requires_key}`);
+    const fromCode = listModules().flatMap((m) =>
+      m.requiresModules.map((required) => `${m.key} -> ${required}`),
+    );
+    expect(fromCode.sort()).toEqual(fromDatabase.sort());
+  });
 });

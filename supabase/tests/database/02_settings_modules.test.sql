@@ -1,8 +1,9 @@
--- site_settings and modules: anyone reads, only the super admin updates.
+-- site_settings: anyone reads, only the super admin updates. modules: anyone reads, nobody
+-- updates directly (only set_module_enabled / update_module_settings).
 -- permission_scopes: signed-in users read, nobody writes.
 begin;
 \ir ../helpers.psql
-select plan(18);
+select plan(21);
 
 select tests.create_user('b0000000-0000-4000-8000-000000000001', 'admin@t.test', 'super_admin');
 select tests.create_user('b0000000-0000-4000-8000-000000000002', 'staff@t.test', 'staff');
@@ -33,7 +34,10 @@ reset role;
 select tests.claims_for('b0000000-0000-4000-8000-000000000003');
 set local role authenticated;
 update public.site_settings set site_name = 'User was here';
-update public.modules set enabled = true where key = 'blog';
+select throws_ok(
+  $$ update public.modules set enabled = true where key = 'blog' $$,
+  '42501', null, 'users cannot update modules'
+);
 select is((select count(*)::int from public.permission_scopes), 11, 'users can read permission scopes');
 select throws_ok(
   $$ insert into public.permission_scopes (key, label, kind) values ('x', 'X', 'core') $$,
@@ -55,7 +59,10 @@ select is((select enabled from public.modules where key = 'blog'), false, 'a use
 select tests.claims_for('b0000000-0000-4000-8000-000000000002');
 set local role authenticated;
 update public.site_settings set site_name = 'Staff was here';
-update public.modules set enabled = true where key = 'blog';
+select throws_ok(
+  $$ update public.modules set enabled = true where key = 'blog' $$,
+  '42501', null, 'staff cannot update modules'
+);
 reset role;
 select is((select site_name from public.site_settings), 'North / Co', 'staff cannot update site_settings');
 select is((select enabled from public.modules where key = 'blog'), false, 'staff cannot update modules');
@@ -64,7 +71,10 @@ select is((select enabled from public.modules where key = 'blog'), false, 'staff
 select tests.claims_for('b0000000-0000-4000-8000-000000000001');
 set local role authenticated;
 update public.site_settings set site_name = 'Client Site';
-update public.modules set enabled = true where key = 'blog';
+select throws_ok(
+  $$ update public.modules set enabled = true where key = 'blog' $$,
+  '42501', null, 'the super admin changes modules only through set_module_enabled'
+);
 reset role;
 select is((select site_name from public.site_settings), 'Client Site', 'the super admin can update site_settings');
 select is(
@@ -72,7 +82,7 @@ select is(
   'b0000000-0000-4000-8000-000000000001'::uuid,
   'site_settings.updated_by records the super admin'
 );
-select is((select enabled from public.modules where key = 'blog'), true, 'the super admin can update modules');
+select is((select enabled from public.modules where key = 'blog'), false, 'the module is unchanged');
 
 select throws_ok(
   $$ insert into public.site_settings (id) values (false) $$,
