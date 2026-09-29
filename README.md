@@ -143,3 +143,4 @@ A healthy deployment returns HTTP 200 with:
 `"status": "degraded"` with `"reachable": false` means the app is up but cannot reach Supabase:
 check `NEXT_PUBLIC_SUPABASE_URL`, the publishable key, and that the project is not paused. The
 same status line is shown on `/admin`.
+# clientwebsiteplatform
