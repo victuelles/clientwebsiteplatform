@@ -35,20 +35,23 @@ function useItemIds(length: number) {
   const [state, setState] = useState(() => ({
     ids: Array.from({ length }, (_, i) => i),
     next: length,
+    initial: length,
   }));
   let { ids } = state;
   if (ids.length !== length) {
     const fixed = ids.slice(0, length);
     let next = state.next;
     while (fixed.length < length) fixed.push(next++);
-    setState({ ids: fixed, next });
+    setState({ ...state, ids: fixed, next });
     ids = fixed;
   }
   return {
     ids,
+    /** Items added in this session (ids past the initial ones) start expanded. */
+    isNew: (id: number) => id >= state.initial,
     setIds: (nextIds: number[]) => setState((s) => ({ ...s, ids: nextIds })),
     /** Appends a fresh id (call together with appending the item). */
-    add: () => setState((s) => ({ ids: [...s.ids, s.next], next: s.next + 1 })),
+    add: () => setState((s) => ({ ...s, ids: [...s.ids, s.next], next: s.next + 1 })),
   };
 }
 
@@ -65,6 +68,7 @@ function SortableItem({
   onMove,
   onRemove,
   canRemove,
+  defaultOpen,
   idPrefix,
 }: {
   id: number;
@@ -79,13 +83,14 @@ function SortableItem({
   onMove: (to: number) => void;
   onRemove: () => void;
   canRemove: boolean;
+  defaultOpen: boolean;
   idPrefix: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     disabled: readOnly,
   });
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const hasError = Object.keys(errors).length > 0;
 
   return (
@@ -189,7 +194,7 @@ export function ListField({
 }) {
   const { readOnly } = useSectionEditor();
   const items = value as Record<string, unknown>[];
-  const { ids, setIds, add } = useItemIds(items.length);
+  const { ids, isNew, setIds, add } = useItemIds(items.length);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -242,6 +247,7 @@ export function ListField({
                   onChange(items.filter((_, i) => i !== index));
                 }}
                 canRemove={items.length > min}
+                defaultOpen={isNew(ids[index]!)}
                 idPrefix={idPrefix}
               />
             ))}

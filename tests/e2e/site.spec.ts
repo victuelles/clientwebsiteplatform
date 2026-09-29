@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// The public top bar, header, and footer (North / Co defaults).
+// The public top bar, header, and footer, and the seeded homepage (North / Co content).
 // Each block sets its own viewport, so this file runs once (in the desktop project).
 test.beforeEach(({}, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Sets its own viewports; runs once.");
@@ -18,11 +18,12 @@ test.describe("public site chrome at 1440px", () => {
 
     const header = page.getByTestId("site-header");
     await expect(header.getByRole("link", { name: "North / Co home" })).toBeVisible();
-    for (const label of ["Home", "About", "Services", "Our Impact", "Insights"]) {
-      await expect(
-        header.getByRole("navigation", { name: "Main" }).getByRole("link", { name: label }),
-      ).toBeVisible();
+    const mainNav = header.getByRole("navigation", { name: "Main" });
+    for (const label of ["Home", "About", "Services", "Our Impact"]) {
+      await expect(mainNav.getByRole("link", { name: label })).toBeVisible();
     }
+    // "Insights" links to the blog module, which is off until Phase 6, so it is hidden.
+    await expect(mainNav.getByRole("link", { name: "Insights" })).toHaveCount(0);
     await expect(header.getByRole("link", { name: "Home", exact: true })).toHaveAttribute(
       "aria-current",
       "page",
@@ -37,6 +38,10 @@ test.describe("public site chrome at 1440px", () => {
     await expect(
       footer.getByText(`© ${new Date().getFullYear()} North & Co. All rights reserved.`),
     ).toBeVisible();
+    await expect(footer.getByRole("link", { name: "Growth Strategy" })).toHaveAttribute(
+      "href",
+      "/services#growth-strategy",
+    );
     await expect(footer.getByRole("link", { name: "Email us" })).toHaveAttribute(
       "href",
       "mailto:hello@yourcompany.com",
@@ -104,4 +109,35 @@ test.describe("public site chrome at 390px", () => {
     await expect(page.getByTestId("site-header")).toHaveScreenshot("header-390.png");
     await expect(page.getByTestId("site-footer")).toHaveScreenshot("footer-390.png");
   });
+});
+
+// Full-page baselines of the seeded homepage. They assume a freshly reset database with
+// `pnpm seed:media` run (the e2e specs never change the homepage). Reduced motion keeps the stats
+// at their final values instead of counting up.
+test.describe("seeded homepage", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  for (const [width, height] of [
+    [1440, 900],
+    [390, 844],
+  ] as const) {
+    test(`visual reference: homepage at ${width}px`, async ({ page }) => {
+      test.skip(!!process.env.CI, "Baselines are rendered on macOS; run locally.");
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+      // Load lazy images, then return to the top.
+      await page.evaluate(async () => {
+        for (let y = 0; y < document.body.scrollHeight; y += 600) {
+          window.scrollTo(0, y);
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        window.scrollTo(0, 0);
+      });
+      await page.waitForFunction(() => Array.from(document.images).every((img) => img.complete));
+      await expect(page).toHaveScreenshot(`homepage-${width}.png`, {
+        fullPage: true,
+        maxDiffPixelRatio: 0.01,
+      });
+    });
+  }
 });

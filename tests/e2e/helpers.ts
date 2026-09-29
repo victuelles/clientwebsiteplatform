@@ -96,3 +96,36 @@ export async function createStaff(
   }
   return email;
 }
+
+type SeedSection = { type: string; props: Record<string, unknown>; is_hidden?: boolean };
+
+/** Creates a published page with these sections (as the system). Returns its id and slug. */
+export async function createPublishedPage(label: string, sections: SeedSection[]) {
+  const admin = localAdminClient();
+  const slug = `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const { data: page, error } = await admin
+    .from("pages")
+    .insert({ title: label, slug })
+    .select("id")
+    .single();
+  if (error) throw error;
+  await replaceDraft(page.id, sections);
+  await systemPublish(page.id);
+  return { id: page.id as string, slug };
+}
+
+/** Replaces a page's draft sections directly (as the system). */
+export async function replaceDraft(pageId: string, sections: SeedSection[]) {
+  const admin = localAdminClient();
+  const removed = await admin.from("page_sections").delete().eq("page_id", pageId);
+  if (removed.error) throw removed.error;
+  const inserted = await admin
+    .from("page_sections")
+    .insert(sections.map((s, sort_order) => ({ page_id: pageId, sort_order, ...s })));
+  if (inserted.error) throw inserted.error;
+}
+
+export async function systemPublish(pageId: string) {
+  const { error } = await localAdminClient().rpc("system_publish_page", { page: pageId });
+  if (error) throw error;
+}

@@ -53,7 +53,7 @@ test.describe.serial("staff lifecycle", () => {
     await expect(page.getByText("Unsaved changes")).toBeHidden();
   });
 
-  test("the staff member accepts, sets a password, and sees only Dashboard and Content", async ({
+  test("the staff member accepts, sets a password, and sees only Dashboard and the content pages", async ({
     page,
   }) => {
     const link = await emailLinkPath(email);
@@ -70,7 +70,7 @@ test.describe.serial("staff lifecycle", () => {
     await page.context().clearCookies();
     await signIn(page, email, staffPassword);
     await expect(page).toHaveURL(/\/admin$/);
-    expect(await adminNavLinks(page)).toEqual(["Dashboard", "Content"]);
+    expect(await adminNavLinks(page)).toEqual(["Dashboard", "Content", "Navigation"]);
   });
 
   test("the staff member is sent to /not-authorized for areas they were not granted", async ({
@@ -117,9 +117,9 @@ test.describe.serial("staff lifecycle", () => {
     });
     expect(await response.text()).toContain("You don't have permission to do that.");
 
-    // Nothing changed: the nav still shows only Dashboard and Content.
+    // Nothing changed: the nav still shows only Dashboard and the content pages.
     await page.reload();
-    expect(await adminNavLinks(page)).toEqual(["Dashboard", "Content"]);
+    expect(await adminNavLinks(page)).toEqual(["Dashboard", "Content", "Navigation"]);
   });
 
   test("deactivating the staff member signs them out on their next request", async ({

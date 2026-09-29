@@ -56,17 +56,17 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    { name: "desktop", use: desktop, testIgnore: /branding\.spec\.ts/ },
+    { name: "desktop", use: desktop, testIgnore: /(branding|navigation)\.spec\.ts/ },
     {
       name: "mobile",
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } },
-      testIgnore: /branding\.spec\.ts/,
+      testIgnore: /(branding|navigation)\.spec\.ts/,
     },
-    // Tests that change site-wide settings run last, alone, so they never disturb other tests.
+    // Tests that change site-wide settings or menus run last, alone, so they never disturb other tests.
     {
       name: "branding",
       use: desktop,
-      testMatch: /branding\.spec\.ts/,
+      testMatch: /(branding|navigation)\.spec\.ts/,
       dependencies: ["desktop", "mobile"],
     },
   ],
