@@ -37,6 +37,21 @@ function localSupabaseEnv(): Record<string, string> {
 }
 
 const supabaseEnv = localSupabaseEnv();
+
+// Integrations are always unconfigured in e2e (as in CI), whatever .env.local holds: an empty
+// value set here wins over .env.local. modules.spec.ts relies on this.
+const NO_INTEGRATIONS = Object.fromEntries(
+  [
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+    "RESEND_API_KEY",
+    "RESEND_FROM_EMAIL",
+    "MUX_TOKEN_ID",
+    "MUX_TOKEN_SECRET",
+    "MUX_WEBHOOK_SECRET",
+  ].map((name) => [name, ""]),
+);
 // Exposed to the tests: Mailpit, and local Supabase keys for creating test users (helpers.ts).
 process.env.MAILPIT_URL = supabaseEnv.MAILPIT_URL;
 process.env.E2E_SUPABASE_URL = supabaseEnv.NEXT_PUBLIC_SUPABASE_URL;
@@ -56,11 +71,11 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    { name: "desktop", use: desktop, testIgnore: /(branding|navigation)\.spec\.ts/ },
+    { name: "desktop", use: desktop, testIgnore: /(branding|navigation|modules)\.spec\.ts/ },
     {
       name: "mobile",
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } },
-      testIgnore: /(branding|navigation)\.spec\.ts/,
+      testIgnore: /(branding|navigation|modules)\.spec\.ts/,
     },
     // Tests that change site-wide settings or menus run last, alone, so they never disturb other tests.
     {
@@ -69,13 +84,20 @@ export default defineConfig({
       testMatch: /(branding|navigation)\.spec\.ts/,
       dependencies: ["desktop", "mobile"],
     },
+    // Module switches change the whole site (nav, header links, public routes): after everything.
+    {
+      name: "modules",
+      use: desktop,
+      testMatch: /modules\.spec\.ts/,
+      dependencies: ["branding"],
+    },
   ],
   // A production build, so tests can run while `pnpm dev` is running (Next.js allows one dev
   // server per project) and exercise the same code paths as a deployment.
   webServer: {
     command: `pnpm build && pnpm exec next start --port ${port}`,
     url: `${baseURL}/api/health`,
-    env: { ...supabaseEnv, SKIP_ENV_VALIDATION: "" },
+    env: { ...supabaseEnv, ...NO_INTEGRATIONS, SKIP_ENV_VALIDATION: "" },
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
   },

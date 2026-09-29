@@ -1,13 +1,12 @@
 import { requireUser } from "@/core/access/guard";
 import { accountNavItems } from "@/core/modules/registry";
-import { getEnabledModules } from "@/core/modules/registry.server";
 
 import { AccountNav } from "./_components/account-nav";
 
 // The signed-in user's area: Profile first, then one item per enabled module's accountNav.
 export default async function AccountLayout({ children }: LayoutProps<"/account">) {
-  await requireUser();
-  const enabled = await getEnabledModules();
+  // Module state from the access context: read fresh on every request.
+  const { modules: enabled } = await requireUser();
   const items = [
     { label: "Profile", href: "/account" },
     ...accountNavItems()

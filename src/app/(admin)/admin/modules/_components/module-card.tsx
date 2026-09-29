@@ -205,21 +205,19 @@ export function ModuleCard({ card }: { card: ModuleCardData }) {
       </CardFooter>
 
       <AlertDialog open={dialog !== null} onOpenChange={(open) => !open && setDialog(null)}>
-        <AlertDialogContent className="sm:max-w-lg">
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto data-[size=default]:max-w-[calc(100%-2rem)] data-[size=default]:sm:max-w-lg">
           {dialog === "enable" ? (
             <>
               <AlertDialogHeader>
                 <AlertDialogTitle>Turn on {card.label}?</AlertDialogTitle>
                 <AlertDialogDescription render={<div />} className="space-y-3 text-left">
                   <p>
-                    Staff with {card.label} permissions can use it right away, and visitors see its
-                    public pages.
+                    Staff with {card.label} permissions can use it right away
+                    {card.appears.publicRoutes.length > 0
+                      ? ", and visitors see its public pages."
+                      : ". It has no public pages; it adds admin tools only."}
                   </p>
-                  {appears.length > 0 ? (
-                    <Summary title="What appears" items={appears} />
-                  ) : (
-                    <p>It has no public pages; it adds admin tools only.</p>
-                  )}
+                  <Summary title="What appears" items={appears} />
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
