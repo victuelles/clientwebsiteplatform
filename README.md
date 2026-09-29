@@ -194,4 +194,30 @@ Do this in each client's Supabase dashboard. Local development gets the same set
       signs up with that email and confirms it; their first sign-in makes them the super admin.
       Every other sign-up becomes a regular user. Check `/admin` afterwards.
 
+## Branding checklist per client
+
+Do this in the client's admin (`/admin/settings` and `/admin/media`, signed in as the super
+admin) after the deployment works. Changes go live immediately; no redeploy is needed.
+
+- [ ] **Logos and favicon** (Media, then Settings → Branding): upload the logo for light
+      backgrounds, the logo for dark backgrounds (used in the navy header and footer), and a
+      square favicon (at least 64×64). Add alt text to every image.
+- [ ] **Colors and fonts** (Settings → Branding): set accent, dark, background, text, light
+      section, secondary text, and border colors; pick heading and body fonts and corners. Check
+      the contrast results under the preview.
+- [ ] **Site details** (Settings → General and Contact): site name, tagline, description
+      (footer blurb), email, phone, location, address, and map link.
+- [ ] **Header and footer** (Settings → Header & footer): top bar on/off, header button, copyright
+      line, privacy and terms links. Social links in Settings → Social.
+- [ ] **SEO defaults** (Settings → SEO): title template (e.g. `%s | Client Name`), default
+      description, and a 1200×630 share image.
+- [ ] **Integrations** (Settings → Integrations): after adding keys in Vercel and redeploying,
+      use Test connection for each configured provider.
+- [ ] **Indexing**: leave "Allow search engines to index this site" **off** until launch day, then
+      turn it on and check `https://<client-domain>/robots.txt`.
+
+Images are served from the client's Supabase Storage (the `media` bucket is created by the
+migrations). `next.config.ts` allows that domain for `next/image` automatically from
+`NEXT_PUBLIC_SUPABASE_URL`; there is nothing to configure in Vercel.
+
 # clientwebsiteplatform

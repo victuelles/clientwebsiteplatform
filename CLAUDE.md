@@ -44,7 +44,7 @@ API you are unsure of. Known differences used here: `proxy.ts` replaces `middlew
 ```
 src/
   app/
-    (public)/            public site routes; placeholder header with sign-in indicator
+    (public)/            public site routes; layout renders TopBar, SiteHeader, SiteFooter
       (auth)/            sign-in, sign-up, forgot-password, reset-password (+ actions.ts)
       (auth)/auth/set-password/  password setup for invited staff
       auth/              route handlers: confirm (token_hash), callback (PKCE code), disabled
@@ -54,32 +54,48 @@ src/
       _shell/            sidebar, nav config (buildNav), AdminPageHeader, PhasePlaceholder
       staff/             staff list, invite, detail + permission matrix (super admin)
       audit/             audit log viewer (super admin)
-      content/ media/ modules/ settings/   guarded placeholders for later phases
+      media/             media library (media:view)
+      settings/          settings tabs incl. branding preview and integrations (super admin)
+      content/ modules/  guarded placeholders for later phases
     api/health/          GET /api/health
-    layout.tsx, globals.css, not-found.tsx, error.tsx
+    brand-icon/          favicon (uploaded asset or generated mark)
+    robots.ts            robots.txt from allow_indexing
+    layout.tsx           theme CSS variables + fonts + default metadata from settings
+    globals.css, not-found.tsx (renders site chrome), error.tsx
   core/                  platform code shared by everything
     env.ts               the ONLY place env vars are read
-    site.ts              static site identity (replaced by DB settings in Phase 3)
+    site.ts              fallback site name only (real values come from site_settings)
     access/              THE access guard: scopes.ts (registry), decide.ts (pure decisions),
                          context.ts (getAccessContext), guard.ts (requireAccess & co.),
                          protected-action.ts, protected-route.ts, permissions-provider.tsx
     auth/                session (getCurrentUser/getCurrentProfile), bootstrap, schemas,
                          redirects (safeNextPath), sign-in finishing, messages, signOut action
-    settings/            getSiteSettings() (site_settings row)
-    supabase/            client.ts (browser), server.ts, admin.ts, proxy.ts, database.types.ts
+    settings/            get-settings.ts (getSiteSettings, cached), theme.ts (schema + CSS vars),
+                         color.ts (OKLCH, contrast), fonts.ts + font-loaders.ts, social.ts,
+                         schemas.ts (settings form schemas)
+    media/               types (MediaAsset, mediaPublicUrl), upload rules, dimensions,
+                         SVG sanitizing, queries, actions, usage labels
+    navigation/          defaults.ts: TEMPORARY header/footer links (Phase 4 replaces)
+    integrations/        test-connection.ts (Stripe/Mux fetch, Resend email)
+    supabase/            client.ts (browser), server.ts, admin.ts, public.ts (cached, cookie-less),
+                         proxy.ts, database.types.ts
                          later: sections/, module registry
   modules/               one folder per optional module (from Phase 6)
   components/ui/         shadcn components (generated; edit sparingly)
-  components/shared/     site components shared across core and modules
+  components/shared/     shared primitives: Eyebrow, ActionLink, FormTextField, FormMessage,
+                         ModuleDisabledNotice, useUnsavedChangesWarning
+  components/media/      MediaImage, MediaPicker, MediaGrid, UploadZone, useMediaUpload
+  components/site/       public chrome: TopBar, SiteHeader, SiteFooter, Logo, SiteContainer
   lib/                   small generic utilities (no Supabase, no business logic)
   proxy.ts               Supabase session refresh, x-pathname header, optimistic /admin
                          no-cookie redirect (speed only; not security)
 supabase/
   migrations/            the schema (single source of truth)
   tests/                 pgTAP tests (database/*.test.sql) + helpers.psql
-  templates/             auth email templates (token_hash links to /auth/confirm)
+  templates/             auth email templates (token_hash links to /auth/confirm; incl. invite)
   seed.sql               LOCAL test accounts only; never run against a client database
-tests/e2e/               Playwright tests (run against local Supabase)
+tests/e2e/               Playwright tests (local Supabase); branding.spec.ts runs last, alone;
+                         *-snapshots/ = visual baselines (macOS, skipped in CI)
 docs/design/             reference images
 docs/phases/             phase-N.md = the brief for phase N; phase-N-notes.md = what was built
 ```
@@ -118,6 +134,9 @@ docs/phases/             phase-N.md = the brief for phase N; phase-N-notes.md = 
 | `permission_scopes` | Areas a permission applies to. Core: `content`, `media`. Module: `blog`, `photo_gallery`, `video_gallery`, `shop`, `directory`, `inventory`, `crm`, `booking`, `email_marketing` |
 | `modules`           | `enabled` flag per module scope (all start disabled)                                                                                                                             |
 | `staff_permissions` | `(user_id, scope, action)` grants; never updated, only inserted/deleted                                                                                                          |
+| `media_folders`     | Media library folders (unique name per parent; only empty ones can be deleted)                                                                                                   |
+| `media_assets`      | Files in the public `media` bucket: path, filename, type, size, dimensions, alt text, caption, folder                                                                            |
+| `media_references`  | Where each asset is used (FK restrict blocks deleting assets in use)                                                                                                             |
 | `audit_log`         | Append-only log, written only by security definer functions (`log_audit`, admin functions)                                                                                       |
 
 Enums: `app_role` (`super_admin`, `staff`, `user`), `permission_action` (`view`, `create`, `edit`,
@@ -189,17 +208,21 @@ comment block and the `orders` example at the top of
 8. **Disabling a module** hides its UI and blocks new operations, but never deletes data.
 9. **Design fidelity**: UI must match `docs/design/` at mobile (390px) and desktop (1440px) widths.
    Use shadcn components and theme tokens (`bg-accent`, `bg-navy`, `text-muted-foreground`,
-   `border-border`, `rounded-lg` and so on). Never hard-code colors (no hex values, no
-   `bg-red-500`).
-10. **Theme token names are permanent**: `background`, `foreground`, `muted`, `navy`, `accent`,
-    `accent-foreground`, `border`, `radius` (plus `muted-foreground`, `navy-foreground`, `success`,
-    `destructive`). shadcn tokens (`primary`, `card`, `ring` and so on) are derived from them in
-    `globals.css`. Phase 3 overrides the values per client.
-11. **No secrets in the database**: integration keys (Stripe, Resend, Mux) live in env vars. Use
+   `border-border`, `rounded-lg` and so on). **Never hard-code colors** (no hex values, no
+   `bg-red-500`): every client picks its own colors, so a hard-coded color breaks their brand.
+10. **Theme token names are permanent**: `background`, `foreground`, `muted`, `muted-foreground`,
+    `navy`, `navy-foreground`, `navy-hover`, `navy-active`, `accent`, `accent-foreground`,
+    `accent-hover`, `accent-active`, `border`, `radius` (plus `success`, `destructive`). The root
+    layout sets them from `site_settings.theme`; shadcn tokens (`primary`, `card`, `ring`, ...)
+    derive from them in `globals.css`. Fonts: `font-sans` (body) and `font-heading` (h1-h6).
+11. **Images and files only through the media library**: render with `MediaImage`, choose with
+    `MediaPicker`, store the asset id, and **record a media reference** whenever a saved record
+    points at an asset (see "Settings, theme, and media").
+12. **No secrets in the database**: integration keys (Stripe, Resend, Mux) live in env vars. Use
     `getIntegrationStatus()` from `env.ts` to show or hide integration-dependent features.
-12. **Dependencies**: do not add dependencies beyond what the current phase specifies without
+13. **Dependencies**: do not add dependencies beyond what the current phase specifies without
     asking the user first.
-13. **Workflow**: commit after each step with a clear message. At the end of a phase, write
+14. **Workflow**: commit after each step with a clear message. At the end of a phase, write
     `docs/phases/phase-N-notes.md` (the brief itself is `docs/phases/phase-N.md`; never overwrite
     it) and update "Current state" below.
 
@@ -275,6 +298,54 @@ the only unguarded server actions; webhooks (later phases) verify signatures ins
 admin client. Adding a scope means a migration **and** `src/core/access/scopes.ts` (`pnpm test:int`
 fails if they drift).
 
+## Settings, theme, and media
+
+**Reading settings**: `const settings = await getSiteSettings()` (`@/core/settings/get-settings`)
+in any Server Component. It is cached across requests (Data Cache tag `site-settings`, via the
+cookie-less `createCachedPublicClient`) and includes the brand assets (`logo`, `logoOnDark`,
+`favicon`, `ogImage` as `MediaAsset`), the parsed `theme`, and `socialLinks`. Anything that
+changes settings must call `update_site_settings` (super admin, audited) and then
+`updateTag(SITE_SETTINGS_TAG)` (see `settings/actions.ts`). The admin settings page reads fresh
+values with the server client instead of the cache. Direct database edits are not visible until
+the tag is revalidated or the app is redeployed.
+
+**Theme** (`src/core/settings/theme.ts`): versioned Zod schema
+`{ version: 1, colors: { accent, navy, background, foreground, muted, mutedForeground, border },
+fonts: { heading, body }, radius }`. `themeToCssVariables()` turns it into the tokens above,
+deriving hover/active shades (OKLCH) and readable foregrounds (white when it reaches 3:1). To
+change the shape: bump `THEME_VERSION` and migrate old values in `parseTheme()`.
+
+**Fonts**: only the curated list in `src/core/settings/fonts.ts` (Inter, DM Sans, Manrope, Plus
+Jakarta Sans, Lora, Playfair Display) because next/font needs them at build time. To add one:
+declare it in `font-loaders.ts` (with `variable: "--font-<key>"`, `preload: false`), add it to
+`FONT_LOADERS`, and add an entry to `FONTS`.
+
+**Media**:
+
+- Render images with `<MediaImage asset={asset} ... />` (correct width/height/alt; SVG and GIF
+  unoptimized). Never use raw `<img>` or build storage URLs by hand (`mediaPublicUrl()` exists).
+- Let users choose files with `<MediaPicker value={asset} onChange={...} accept="image" />`. It
+  searches, browses folders, and uploads in place. Every future feature needing an image uses it.
+- Select assets with `MEDIA_ASSET_COLUMNS` (never `*`; anon cannot read `uploaded_by`).
+- **media_references rule**: whenever a saved record points at an asset, record it in the same
+  security definer function that saves the record: `perform public.set_media_reference(
+'<table>', <id>::text, '<field>', <media_id>)` (null clears it). Add a label for the new
+  table/field in `src/core/media/usage.ts`. Referenced assets cannot be deleted.
+- Uploads: `useMediaUpload` → `requestUpload` (permission + type/size, signed URL) → browser PUT →
+  `confirmUpload` (sniffs real type, reads dimensions, sanitizes SVG, creates the row). Allowed:
+  JPEG, PNG, WebP, AVIF, GIF, PDF up to 10 MB; SVG only for the super admin.
+
+**Public chrome and primitives** (`src/components/site`, `src/components/shared`):
+`TopBar`, `SiteHeader` (navy; uses `logoOnDark ?? logo`, else the `Logo` wordmark fallback),
+`SiteFooter`, `SiteContainer` (1192px content column). Reuse `Eyebrow` (uppercase accent label
+with a leading dash) and `ActionLink` (`variant="accent" | "dark" | "text"`, optional
+`arrow="right" | "up-right"`) for every CTA. Header/footer links are temporary
+(`src/core/navigation/defaults.ts`) until Phase 4 menus.
+
+**Integrations**: `getIntegrationDetails()` (env.ts) reports configured/missing env var names
+(never values). Settings → Integrations tests Stripe/Mux with read-only fetches and sends a
+Resend test email to the super admin.
+
 ## Auth
 
 - Verify identity on the server with `getCurrentUser()` (uses `supabase.auth.getClaims()`, which
@@ -305,6 +376,7 @@ pnpm typecheck                # next typegen + tsc
 pnpm format / format:check    # Prettier
 pnpm test                     # Vitest unit tests (src/**/*.test.ts)
 pnpm test:e2e                 # Playwright vs local Supabase (production build on :3100)
+pnpm exec playwright test --update-snapshots   # refresh visual baselines (after intended UI changes)
 pnpm test:db                  # pgTAP database tests (supabase/tests)
 pnpm test:int                 # integration tests vs local Supabase (src/**/*.int.test.ts)
 
@@ -329,30 +401,31 @@ http://127.0.0.1:54324.
 
 ## Current state
 
-**Phase 2 (Access control and admin shell) is complete.** What exists:
+**Phase 3 (Branding, settings, and media library) is complete.** What exists:
 
-- Everything from Phases 0 and 1 (see `docs/phases/phase-0-notes.md`, `phase-1-notes.md`).
-- SQL: `get_my_permissions`, `set_staff_permissions`, `admin_list_staff` (+ pgTAP tests).
-- `src/core/access/`: scope registry (+ drift test), `decideAccess`, `getAccessContext`,
-  `requireAccess` / `requireSuperAdmin` / `requireStaffOrAdmin` / `requireUser`,
-  `protectedAction`, `protectedRoute`, `PermissionsProvider` (UI hiding only).
-- Proxy: optimistic no-cookie redirect for `/admin`, `x-pathname` header for guards.
-- Admin shell: navy sidebar (collapsible, sheet on mobile), permission-filtered nav, breadcrumbs,
-  dashboard (areas + health), guarded placeholders for Content, Media, Modules, Settings.
-- `/admin/staff` (invite, promote existing user, permission matrix, deactivate/reactivate,
-  demote, resend invite), `/auth/set-password`, `/admin/audit` (filters, pagination, drawer).
-- Tests: 148 pgTAP assertions, 77 unit tests, integration drift test, 25 e2e tests (desktop +
-  390px). CI runs all of them.
+- Everything from Phases 0 to 2 (see `docs/phases/phase-0-notes.md` to `phase-2-notes.md`).
+- `site_settings` branding, contact, header/footer, social, SEO, and theme columns (North / Co
+  defaults), `update_site_settings` (allow-list, audited, records media references).
+- Media: `media` storage bucket, `media_folders`, `media_assets`, `media_references`, RLS and
+  storage policies by `can('media', ...)`; `/admin/media` library; `MediaImage`, `MediaPicker`.
+- Theming: cached `getSiteSettings()`, theme → CSS variables on `<html>`, derived shades,
+  curated fonts, contrast check; admin rebrands live (updateTag).
+- `/admin/settings`: General, Contact, Branding (live preview), Header & footer, Social, SEO,
+  Integrations (status + connection tests).
+- Public chrome: top bar, header (mobile sheet), footer; 404 page with chrome; `ActionLink`.
+- SEO: metadata from settings, `/brand-icon` favicon, `robots.txt` + noindex until launch.
+- Tests: 188 pgTAP assertions, 145 unit tests, 2 integration tests, 42 e2e tests (+ visual
+  baselines). CI runs all but the visual comparisons.
 
-Not yet built: branding, settings, media library (Phase 3), homepage sections (Phase 4), module
-registry and module switches (Phase 5), modules.
+Not yet built: homepage sections, pages, and menus (Phase 4), module registry and module
+switches (Phase 5), modules.
 
 ## Phase roadmap
 
 0. Foundation ✅
 1. Core database, auth, and roles ✅
 2. Access control and admin shell ✅
-3. Branding, settings, and media library
+3. Branding, settings, and media library ✅
 4. Homepage section builder and pages
 5. Module framework
 6. Blog
