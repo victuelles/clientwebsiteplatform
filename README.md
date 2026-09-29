@@ -36,6 +36,20 @@ missing or invalid, `pnpm dev` and `pnpm build` stop with a list of every proble
 > (`sb_secret_...`). Projects that still use the legacy JWT keys can put the `anon` key in
 > `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the `service_role` key in `SUPABASE_SECRET_KEY`.
 
+## Local test accounts
+
+`pnpm db:reset` applies all migrations and then `supabase/seed.sql`, which creates these accounts in
+the **local** database only:
+
+| Email                     | Password       | Role                              |
+| ------------------------- | -------------- | --------------------------------- |
+| `superadmin@example.test` | `Password123!` | super_admin                       |
+| `staff@example.test`      | `Password123!` | staff (`content`: `view`, `edit`) |
+| `user@example.test`       | `Password123!` | user                              |
+
+Emails sent by local Supabase (confirmations, magic links, password resets) appear in Mailpit at
+http://127.0.0.1:54324. **Never run `seed.sql` against a client database.**
+
 ## Scripts
 
 | Script                       | What it does                                                   |
@@ -143,4 +157,5 @@ A healthy deployment returns HTTP 200 with:
 `"status": "degraded"` with `"reachable": false` means the app is up but cannot reach Supabase:
 check `NEXT_PUBLIC_SUPABASE_URL`, the publishable key, and that the project is not paused. The
 same status line is shown on `/admin`.
+
 # clientwebsiteplatform
