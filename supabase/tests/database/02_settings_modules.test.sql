@@ -48,7 +48,7 @@ select throws_ok(
   '42501', null, 'users cannot delete site_settings'
 );
 reset role;
-select is((select site_name from public.site_settings), 'My Site', 'a user cannot update site_settings');
+select is((select site_name from public.site_settings), 'North / Co', 'a user cannot update site_settings');
 select is((select enabled from public.modules where key = 'blog'), false, 'a user cannot update modules');
 
 -- Staff (even with a content permission) ------------------------------------------------------------
@@ -57,7 +57,7 @@ set local role authenticated;
 update public.site_settings set site_name = 'Staff was here';
 update public.modules set enabled = true where key = 'blog';
 reset role;
-select is((select site_name from public.site_settings), 'My Site', 'staff cannot update site_settings');
+select is((select site_name from public.site_settings), 'North / Co', 'staff cannot update site_settings');
 select is((select enabled from public.modules where key = 'blog'), false, 'staff cannot update modules');
 
 -- Super admin -------------------------------------------------------------------------------------
