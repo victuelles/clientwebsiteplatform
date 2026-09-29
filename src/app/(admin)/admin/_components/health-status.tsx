@@ -38,7 +38,7 @@ export function HealthStatus() {
     <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
       <span
         aria-hidden
-        className={cn("size-2 rounded-full", ok ? "bg-emerald-500" : "bg-destructive")}
+        className={cn("size-2 rounded-full", ok ? "bg-success" : "bg-destructive")}
       />
       {text}
     </p>
