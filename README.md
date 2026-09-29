@@ -71,6 +71,7 @@ http://127.0.0.1:54324. **Never run `seed.sql` against a client database.**
 | `pnpm db:push`               | Apply pending migrations to the linked remote project          |
 | `pnpm db:types`              | Regenerate `src/core/supabase/database.types.ts` from local DB |
 | `pnpm db:types:linked`       | Same, from the linked remote project                           |
+| `pnpm seed:media`            | Upload `seed/media/` images and put them on the seeded pages   |
 
 ## Deploying a client site
 
@@ -108,6 +109,41 @@ pnpm exec supabase db push --db-url "postgresql://postgres:<password>@db.<client
 
 Always run migrations **before** deploying code that depends on them. When a release includes new
 migrations, push them to every client project.
+
+The migrations also seed the starter content: the North / Co homepage, the About, Services, Our
+Impact, and Contact pages (all published), and the header and footer menus. Image fields start
+empty. Fill them with the starter photos (or the client's own, see below):
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://<client-ref>.supabase.co SUPABASE_SECRET_KEY=sb_secret_... pnpm seed:media
+```
+
+Without those variables the script reads `.env.local`. It uploads every image listed in
+`seed/media/manifest.json` to the client's `media` bucket, creates the media library entries with
+their alt text, puts each image into the section fields listed for it (only where the field is still
+empty), and publishes the pages it changed. Running it again is safe: images already in the library
+are reused, and filled fields are left alone. Run it before the first deploy. If the site is
+already live, publish the homepage once from the admin afterwards so the cached page refreshes.
+
+`seed/media/manifest.json` lists each file with its alt text and targets:
+
+```json
+{
+  "images": [
+    {
+      "file": "hero-workspace.jpg",
+      "alt": "Two colleagues sketching a plan on paper at a desk",
+      "targets": [{ "page": "home", "section": "hero", "field": "image" }]
+    }
+  ]
+}
+```
+
+- `file`: a JPEG, PNG, WebP, AVIF, or GIF in `seed/media/` (10 MB at most).
+- `alt`: the alt text stored on the media asset.
+- `targets`: where to use it. `page` is the page slug (the homepage is `home`), `section` the
+  section type, optional `index` picks the nth section of that type (0-based, default 0), and
+  `field` is the image field, as a dotted path for list items (for example `cards.0.image`).
 
 ### 3. Create the client's Vercel project
 

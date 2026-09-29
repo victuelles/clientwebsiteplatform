@@ -1,0 +1,24 @@
+{
+  "images": [
+    {
+      "file": "hero-workspace.jpg",
+      "alt": "Two colleagues sketching a plan on paper at a desk",
+      "targets": [{ "page": "home", "section": "hero", "field": "image" }]
+    },
+    {
+      "file": "team-collaboration.jpg",
+      "alt": "A small team working together on laptops at a shared table",
+      "targets": [{ "page": "home", "section": "image_with_text", "field": "image" }]
+    },
+    {
+      "file": "client-meeting.jpg",
+      "alt": "A team talking around desks in a bright open office",
+      "targets": [{ "page": "home", "section": "testimonial", "field": "image" }]
+    },
+    {
+      "file": "team-at-work.jpg",
+      "alt": "Colleagues working side by side on laptops",
+      "targets": [{ "page": "home", "section": "intro_image", "field": "image" }]
+    }
+  ]
+}
